@@ -10,6 +10,9 @@ import scipy.ndimage
 import datalad.api
 from datalad.support.annexrepo import AnnexRepo
 from .external.synthstrip import synthstrip_wf
+from .mask import generate_deface_ear_mask
+from .align import registration
+from .utils import output_debug_images
 
 def workflow(layout, args):
 

@@ -7,8 +7,7 @@ import os
 import bids
 import coloredlogs
 
-from ..init import initialize
-from ..validation import process_validation
+from .bids import _bids_filter
 
 DEBUG = bool(os.environ.get("DEBUG", False))
 coloredlogs.install()
@@ -112,3 +111,6 @@ def main() -> None:
     success = workflow(layout, args)
 
     exit(0 if success else 1)
+
+if __name__ == "__main__":
+    main()
