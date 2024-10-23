@@ -1,30 +1,25 @@
-import os
-import json
-import bids
+from __future__ import annotations
+
 import argparse
-from pathlib import Path
+import json
 import logging
+import os
+from pathlib import Path
+
+import bids
+import datalad.api
 import nibabel as nb
 import numpy as np
 import scipy.ndimage
-import datalad.api
+import scipy.ndimage.morphology
 from datalad.support.annexrepo import AnnexRepo
 from deepbrain import Extractor
-import scipy.ndimage.morphology
-
-from dipy.align.imaffine import (
-    transform_centers_of_mass,
-    AffineMap,
-    MutualInformationMetric,
-    AffineRegistration,
-    VerbosityLevels,
-)
-from dipy.align.transforms import (
-    AffineTransform3D,
-    RigidTransform3D,
-    RigidScalingTransform3D,
-    RigidIsoScalingTransform3D,
-)
+from dipy.align.imaffine import (AffineMap, AffineRegistration,
+                                 MutualInformationMetric, VerbosityLevels,
+                                 transform_centers_of_mass)
+from dipy.align.transforms import (AffineTransform3D,
+                                   RigidIsoScalingTransform3D,
+                                   RigidScalingTransform3D, RigidTransform3D)
 
 PYBIDS_CACHE_PATH = ".pybids_cache"
 MNI_PATH = "../../global/templates/MNI152_T1_1mm.nii.gz"

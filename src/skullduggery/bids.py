@@ -1,7 +1,10 @@
-import os
-import bids
+from __future__ import annotations
+
 import json
+import os
 from pathlib import Path
+
+import bids
 
 
 def _filter_pybids_any(dct):

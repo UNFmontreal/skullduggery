@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
+import argparse
 import os
 import sys
-import argparse
 
 ref = '''
 If you use SynthStrip in your analysis, please cite:
@@ -213,10 +215,10 @@ def synthstrip_wf(args=None):
         args = p.parse_args()
 
     # do not wait for third-party imports just to show usage
-    import torch
-    import torch.nn as nn
     import numpy as np
     import surfa as sf
+    import torch
+    import torch.nn as nn
 
     # sanity check on the inputs
     if not args.out and not args.mask and not args.sdt:

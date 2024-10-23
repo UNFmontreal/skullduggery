@@ -1,18 +1,23 @@
-import os
-import json
-import bids
+from __future__ import annotations
+
 import argparse
-from pathlib import Path
+import json
 import logging
+import os
+from pathlib import Path
+
+import bids
+import datalad.api
 import nibabel as nb
 import numpy as np
 import scipy.ndimage
-import datalad.api
 from datalad.support.annexrepo import AnnexRepo
+
+from .align import registration
 from .external.synthstrip import synthstrip_wf
 from .mask import generate_deface_ear_mask
-from .align import registration
 from .utils import output_debug_images
+
 
 def workflow(layout, args):
 
@@ -60,7 +65,7 @@ def workflow(layout, args):
         ref_image_nb = ref_image.get_image()
 
         matrix_path = ref_image.path.replace(
-            "_%s%s" % (ref_image.entities["suffix"], ref_image.entities["extension"]),
+            "_{}{}".format(ref_image.entities["suffix"], ref_image.entities["extension"]),
             "_mod-%s_defacemaskreg.mat" % ref_image.entities["suffix"],
         )
 

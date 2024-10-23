@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 
 
@@ -56,10 +58,11 @@ def synthstrip_load_model(modelfile):
     if model_file in MODEL_CACHE:
         return MODEL_CACHE[model_file]
 
-    import torch
-    import torch.nn as nn
     import numpy as np
     import surfa as sf
+    import torch
+    import torch.nn as nn
+
     from .external.synthstrip import StripModel
 
     # configure device
