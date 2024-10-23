@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import nibabel as nb
-
+import logging
 
 def output_debug_images(ref, moving, affine):
     moving_nb = moving.get_image()

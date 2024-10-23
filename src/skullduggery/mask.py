@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import nibabel as nb
 
 
 # generates the mask on the fly from the template image, using hard-coded markers
@@ -117,4 +118,4 @@ def synthstrip_mask(image, modelfile):
         dist.append(sdt)
 
         # extract mask, find largest CC to be safe
-        yield (sdt < args.border).connected_component_mask(k=1, fill=True)
+        yield (sdt < args.border).connected_component_mask(k=1, fill=True), dist

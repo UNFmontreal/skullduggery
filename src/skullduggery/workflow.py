@@ -13,17 +13,16 @@ import numpy as np
 import scipy.ndimage
 from datalad.support.annexrepo import AnnexRepo
 
-from .align import registration
+from .align import registration, warp_mask, AffineMap
 from .external.synthstrip import synthstrip_wf
 from .mask import generate_deface_ear_mask
 from .utils import output_debug_images
+from .template import get_template
 
 
-def workflow(layout, args):
+def deface_workflow(layout, args):
 
     logging.basicConfig(level=logging.getLevelName(args.debug_level.upper()))
-
-    pybids_cache_path = os.path.join(args.bids_path, PYBIDS_CACHE_PATH)
 
     if args.datalad:
         annex_repo = AnnexRepo(args.bids_path)
@@ -32,11 +31,12 @@ def workflow(layout, args):
         args.participant_label if args.participant_label else bids.layout.Query.ANY
     )
     session_list = args.session_label if args.session_label else bids.layout.Query.ANY
-    filters = dict(
-        subject=subject_list,
-        session=session_list,
+    filters = {
+        'subject': subject_list,
+        'session': session_list,
+        'extension': ['nii','nii.gz'],
         **args.ref_bids_filters,
-        extension=['nii','nii.gz'])
+    }
     deface_ref_images = layout.get(**filters)
 
     if not len(deface_ref_images):
@@ -47,15 +47,11 @@ def workflow(layout, args):
 
     script_dir = os.path.dirname(__file__)
 
-    mni_path = os.path.abspath(os.path.join(script_dir, MNI_PATH))
-    mni_mask_path = os.path.abspath(os.path.join(script_dir, MNI_MASK_PATH))
-    # if the MNI template image is not available locally
-    if not os.path.exists(os.path.realpath(mni_path)):
-        datalad.api.get(mni_path, dataset=datalad.api.Dataset(script_dir + "/../../"))
-    tmpl_image = nb.load(mni_path)
-    tmpl_image_mask = nb.load(mni_mask_path)
+    tpl_path, mask_path = get_template(args.atlas, args.ref_bids_filters)
+    tmpl_image = nb.load(tpl_path)
+    tmpl_image_mask = nb.load(tpl_path)
     tmpl_defacemask = generate_deface_ear_mask(tmpl_image)
-    brain_xtractor = Extractor()
+    #brain_xtractor = Extractor()
 
     for ref_image in deface_ref_images:
         subject = ref_image.entities["subject"]
@@ -83,6 +79,9 @@ def workflow(layout, args):
             )
             brain_mask_nb = nb.Nifti1Image(brain_mask, ref_image_nb.affine)
             """
+            #for mask
+            #brain_mask = synthstrip_mask()
+
             brain_mask_nb = None
             ref2tpl_affine = registration(
                 tmpl_image, ref_image_nb, tmpl_image_mask, brain_mask_nb

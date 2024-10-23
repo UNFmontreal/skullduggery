@@ -60,8 +60,6 @@ def extend_sdt(sdt, border=1):
 
     return sdt.new(out)
 
-# configure model
-print(f'Configuring model on the {device_name}')
 
 class StripModel(nn.Module):
 

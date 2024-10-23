@@ -13,7 +13,6 @@ import numpy as np
 import scipy.ndimage
 import scipy.ndimage.morphology
 from datalad.support.annexrepo import AnnexRepo
-from deepbrain import Extractor
 from dipy.align.imaffine import (AffineMap, AffineRegistration,
                                  MutualInformationMetric, VerbosityLevels,
                                  transform_centers_of_mass)
@@ -21,13 +20,8 @@ from dipy.align.transforms import (AffineTransform3D,
                                    RigidIsoScalingTransform3D,
                                    RigidScalingTransform3D, RigidTransform3D)
 
-PYBIDS_CACHE_PATH = ".pybids_cache"
-MNI_PATH = "../../global/templates/MNI152_T1_1mm.nii.gz"
-MNI_MASK_PATH = "../../global/templates/MNI152_T1_1mm_brain.nii.gz"
 
-
-
-def registration(ref, moving, ref_mask=None, moving_mask=None):
+def registration(ref, moving, ref_mask=None, moving_mask=None, rigid=False):
     ref_mask_data, mov_mask_data = None, None
     ref_data = ref.get_fdata()
     if ref_mask:
@@ -56,7 +50,7 @@ def registration(ref, moving, ref_mask=None, moving_mask=None):
     affreg = AffineRegistration(
         metric=metric, level_iters=[10000, 1000, 0], factors=[4, 2, 2], sigmas=[4, 2, 0]
     )
-    transform = RigidScalingTransform3D()
+    transform = RigidTransform3D() if rigid else RigidScalingTransform3D()
     # transform = AffineTransform3D()
     return affreg.optimize(
         ref_data,

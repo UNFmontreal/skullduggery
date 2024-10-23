@@ -8,8 +8,12 @@ import bids
 import coloredlogs
 
 from .bids import _bids_filter
+from .workflow import deface_workflow
 
 DEBUG = bool(os.environ.get("DEBUG", False))
+PYBIDS_CACHE_PATH = ".pybids_cache"
+
+
 coloredlogs.install()
 if DEBUG:
     logging.basicConfig(level=logging.DEBUG)
@@ -50,6 +54,12 @@ def parse_args():
         help="a space delimited list of sessions identifiers or a single "
         "identifier (the ses- prefix can be removed)",
     )
+
+    parser.add_argument(
+        "--atlas",
+        default="MNI152NLin2009cAsym",
+        help="a templateflow template (with cohort for pediatrics ones)",
+    )
     parser.add_argument(
         "--force-reindex",
         action="store_true",
@@ -75,6 +85,7 @@ def parse_args():
         dest="ref_bids_filters",
         action="store",
         type=_bids_filter,
+        required=True,
         help="path to or inline json with pybids filters to select session reference to register defacemask",
     )
     parser.add_argument(
@@ -82,6 +93,7 @@ def parse_args():
         dest="other_bids_filters",
         action="store",
         type=_bids_filter,
+        required=True,
         help="path to or inline json with pybids filters to select all images to deface",
     )
     parser.add_argument(
@@ -105,10 +117,14 @@ def parse_args() -> dict:
 
 def main() -> None:
     args = parse_args()
-    layout = bids.BIDSLayout(os.path.abspath(args.bids_path))
+    pybids_cache_path = os.path.join(args.bids_path, PYBIDS_CACHE_PATH)
+
+    layout = bids.BIDSLayout(
+        os.path.abspath(args.bids_path)
+        )
     success = False
 
-    success = workflow(layout, args)
+    success = deface_workflow(layout, args)
 
     exit(0 if success else 1)
 
