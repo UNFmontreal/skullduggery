@@ -22,6 +22,13 @@ classifiers = [
 requires-python = ">=3.8.1"
 dynamic = ["version"]
 
+dependencies = [
+    "pybids",
+    "datalad",
+    "dipy",
+    "nibabel",
+]
+
 [project.scripts]
 forbids = "skullduggery.run:main"
 
@@ -50,9 +57,9 @@ test = [
 ]
 
 [project.urls]
-Documentation = "https://github.com/microsoft/python-package-template/tree/main#readme"
-Source = "https://github.com/microsoft/python-package-template"
-Tracker = "https://github.com/microsoft/python-package-template/issues"
+Documentation = "https://github.com/UNFmontreal/skullduggery/tree/main#readme"
+Source = "https://github.com/UNFmontreal/skullduggery"
+Tracker = "https://github.com/UNFmontreal/skullduggery/issues"
 
 [tool.flit.module]
 name = "skullduggery"
@@ -101,12 +108,12 @@ exclude = [
     "**/node_modules",
     "**/__pycache__",
 ]
-venv = "env37"
+venv = "env38"
 
 reportMissingImports = true
 reportMissingTypeStubs = false
 
-pythonVersion = "3.7"
+pythonVersion = "3.8"
 pythonPlatform = "Linux"
 
 executionEnvironments = [
