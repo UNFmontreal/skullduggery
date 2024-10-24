@@ -25,7 +25,8 @@ def deface_workflow(layout, args):
     logging.basicConfig(level=logging.getLevelName(args.debug_level.upper()))
 
     if args.datalad:
-        annex_repo = AnnexRepo(args.bids_path)
+        dlad_ds = datalad.api.Dataset(args.bids_path)
+        annex_repo = dlad_ds.repo
 
     subject_list = (
         args.participant_label if args.participant_label else bids.layout.Query.ANY
@@ -118,13 +119,21 @@ def deface_workflow(layout, args):
                     continue
             logging.info(f"defacing {serie.path}")
 
-            datalad.api.get(serie.path)
-            # unlock before making any change to avoid unwanted save
             if args.datalad:
+                datalad.api.get(serie.path)
+                # unlock before making any change to avoid unwanted save
                 annex_repo.unlock([serie.path for serie in series_to_deface])
 
             serie_nb = serie.get_image()
-            warped_mask = warp_mask(tmpl_defacemask, serie_nb, ref2tpl_affine)
+
+            # assume no repositioning of the participant to start registration
+            matrix = np.linalg.inv(tpl_mask.affine).dot(affine.affine_inv.dot(target.affine))
+            starting_affine = np.linalg.inv(series_nb.affine).dot(ref_image_nb.affine)
+            serie2ref_affine = registration(
+                ref_image_nb, serie_nb, brain_mask_nb, None, rigid=True
+            )
+            serie2tpl_affine = serie2ref_affine.dot(ref2tpl_affine)
+            warped_mask = warp_mask(tmpl_defacemask, serie_nb, serie2tpl_affine)
             if args.save_all_masks or serie == ref_image:
                 warped_mask_path = serie.path.replace(
                     "_%s" % serie.entities["suffix"],

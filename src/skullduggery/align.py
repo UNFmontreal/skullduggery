@@ -21,7 +21,12 @@ from dipy.align.transforms import (AffineTransform3D,
                                    RigidScalingTransform3D, RigidTransform3D)
 
 
-def registration(ref, moving, ref_mask=None, moving_mask=None, rigid=False):
+def registration(
+    ref, moving,
+    ref_mask=None, moving_mask=None,
+    rigid=False,
+    starting_affine="mass",
+):  
     ref_mask_data, mov_mask_data = None, None
     ref_data = ref.get_fdata()
     if ref_mask:
@@ -42,7 +47,7 @@ def registration(ref, moving, ref_mask=None, moving_mask=None, rigid=False):
         None,
         ref.affine,
         moving.affine,
-        starting_affine="mass",
+        starting_affine=starting_affine,
         static_mask=ref_mask_data,
         moving_mask=mov_mask_data,
     )
