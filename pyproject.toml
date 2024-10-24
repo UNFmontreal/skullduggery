@@ -32,7 +32,7 @@ dependencies = [
 ]
 
 [project.scripts]
-forbids = "skullduggery.run:main"
+skullduggery = "skullduggery.run:main"
 
 [project.optional-dependencies]
 spark = [
