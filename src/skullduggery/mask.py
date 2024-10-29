@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-import numpy as np
+import os
+
 import nibabel as nb
+import numpy as np
 
 
 # generates the mask on the fly from the template image, using hard-coded markers
@@ -49,18 +51,13 @@ def generate_deface_ear_mask(mni):
 
 MODEL_CACHE = {}
 
-def synthstrip_load_model(modelfile):
+def synthstrip_load_model(modelfile, cuda_devices=None):
     global MODEL_CACHE
 
     if not modelfile:
         fshome = os.environ.get('FREESURFER_HOME')
-        modelfile = os.path.join(fshome, 'models', f'synthstrip.{version}.pt')
+        modelfile = os.path.join(fshome, 'models', f'synthstrip.1.pt')
 
-    if model_file in MODEL_CACHE:
-        return MODEL_CACHE[model_file]
-
-    import numpy as np
-    import surfa as sf
     import torch
     import torch.nn as nn
 
@@ -68,7 +65,7 @@ def synthstrip_load_model(modelfile):
 
     # configure device
     gpu = os.environ.get('CUDA_VISIBLE_DEVICES', '0')
-    if args.gpu:
+    if cuda_devices:
         os.environ['CUDA_VISIBLE_DEVICES'] = gpu
         device = torch.device('cuda')
         device_name = 'GPU'
@@ -76,23 +73,31 @@ def synthstrip_load_model(modelfile):
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
         device = torch.device('cpu')
         device_name = 'CPU'
-        if args.threads is not None:
-            torch.set_num_threads(args.threads)
+#        if args.threads is not None:
+#            torch.set_num_threads(args.threads)
+
+    if modelfile in MODEL_CACHE:
+        return MODEL_CACHE[modelfile], device
 
     with torch.no_grad():
         model = StripModel()
         model.to(device)
         model.eval()
 
-
-
     checkpoint = torch.load(modelfile, map_location=device)
     model.load_state_dict(checkpoint['model_state_dict'])
-    model[model_file] = model
-    return model
+    MODEL_CACHE[modelfile] = model
+    return model, device
 
-def synthstrip_mask(image, modelfile):
-    model = synthstrip_load_model(modelfile)
+def synthstrip_mask(image_path, modelfile="", border=1):
+    model, device = synthstrip_load_model(modelfile)
+
+    import surfa as sf
+    import torch
+
+    from .external.synthstrip import extend_sdt
+
+    image = sf.load_volume(image_path)
 
     for f in range(image.nframes):
         print(f + 1, end=' ', flush=True)
@@ -113,9 +118,8 @@ def synthstrip_mask(image, modelfile):
             sdt = model(input_tensor).cpu().numpy().squeeze()
 
         # extend the sdt if needed, unconform
-        sdt = extend_sdt(conformed.new(sdt), border=args.border)
+        sdt = extend_sdt(conformed.new(sdt), border=border)
         sdt = sdt.resample_like(image, fill=100)
-        dist.append(sdt)
 
         # extract mask, find largest CC to be safe
-        yield (sdt < args.border).connected_component_mask(k=1, fill=True), dist
+        yield sdt, (sdt < border).connected_component_mask(k=1, fill=True)

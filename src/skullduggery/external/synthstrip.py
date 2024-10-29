@@ -6,6 +6,11 @@ import argparse
 import os
 import sys
 
+import numpy as np
+import surfa as sf
+import torch
+import torch.nn as nn
+
 ref = '''
 If you use SynthStrip in your analysis, please cite:
 ----------------------------------------------------
@@ -16,7 +21,6 @@ https://doi.org/10.1016/j.neuroimage.2022.119474
 
 Website: https://synthstrip.io
 '''
-
 
 def extend_sdt(sdt, border=1):
     """Extend SynthStrip's narrow-band signed distance transform (SDT).
@@ -211,12 +215,6 @@ def synthstrip_wf(args=None):
             print(ref)
             exit(1)
         args = p.parse_args()
-
-    # do not wait for third-party imports just to show usage
-    import numpy as np
-    import surfa as sf
-    import torch
-    import torch.nn as nn
 
     # sanity check on the inputs
     if not args.out and not args.mask and not args.sdt:

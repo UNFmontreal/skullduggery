@@ -26,7 +26,7 @@ def registration(
     ref_mask=None, moving_mask=None,
     rigid=False,
     starting_affine="mass",
-):  
+):
     ref_mask_data, mov_mask_data = None, None
     ref_data = ref.get_fdata()
     if ref_mask:
@@ -45,8 +45,8 @@ def registration(
         mov_data,
         transform,
         None,
-        ref.affine,
-        moving.affine,
+        static_grid2world=ref.affine,
+        moving_grid2world=moving.affine,
         starting_affine=starting_affine,
         static_mask=ref_mask_data,
         moving_mask=mov_mask_data,
@@ -62,8 +62,8 @@ def registration(
         mov_data,
         transform,
         None,
-        ref.affine,
-        moving.affine,
+        static_grid2world=ref.affine,
+        moving_grid2world=moving.affine,
         starting_affine=rigid.affine,
         static_mask=ref_mask_data,
         moving_mask=mov_mask_data,
