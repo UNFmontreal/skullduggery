@@ -27,21 +27,21 @@ spark = [
     "pyspark>=3.0.0"
 ]
 test = [
-    "bandit[toml]==1.7.10",
+    "bandit[toml]==1.8.2",
     "black==24.10.0",
     "check-manifest==0.50",
-    "flake8-bugbear==24.8.19",
+    "flake8-bugbear==24.12.12",
     "flake8-docstrings",
     "flake8-formatter_junit_xml",
     "flake8",
     "flake8-pyproject",
-    "pre-commit==4.0.1",
     "pylint==3.3.3",
+    "pre-commit==4.1.0",
     "pylint_junit",
-    "pytest-cov==5.0.0",
+    "pytest-cov==6.0.0",
     "pytest-mock<3.14.1",
     "pytest-runner",
-    "pytest==8.3.3",
+    "pytest==8.3.4",
     "pytest-github-actions-annotate-failures",
     "shellcheck-py==0.10.0.1"
 ]
