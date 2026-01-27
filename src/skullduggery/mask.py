@@ -9,17 +9,16 @@ import numpy as np
 # generates the mask on the fly from the template image, using hard-coded markers
 # the mask image is larger that the template to include the full face and allow processing
 # of images with larger FoV (eg. cspine acquisitions)
-def generate_deface_ear_mask(mni):
+def generate_deface_ear_mask(mni, resolution=1):
 
     deface_ear_mask = np.ones(np.asarray(mni.shape) * (1, 1, 2), dtype=np.uint8)
-    deface_ear_mask[:, :, :mni.shape[2]] = 0
     affine_ext = mni.affine.copy()
     affine_ext[2, -1] -= mni.shape[-1]
 
-    above_eye_marker = [218, 240]
-    jaw_marker = [130, 182]
-    ear_marker = [25, 160]
-    ear_marker2 = [5, 260]
+    above_eye_marker = np.asarray([218, 240]) // resolution
+    jaw_marker = np.asarray([130, 182]) // resolution
+    ear_marker = np.asarray([26, 160]) // resolution
+    ear_marker2 = np.asarray([6, 260]) // resolution
 
     # remove face
     deface_ear_mask[:, jaw_marker[0] :, : jaw_marker[1]] = 0
@@ -44,9 +43,10 @@ def generate_deface_ear_mask(mni):
     # remove data on the image size where the body doesn't extend
     deface_ear_mask[-1] = 0
     deface_ear_mask[0] = 0
+    deface_ear_mask[:, 0, :] = 0
     deface_ear_mask[:, -1, :] = 0
     deface_ear_mask[:, :, -1] = 0
-
+    deface_ear_mask[:, :, :mni.shape[2]] = deface_ear_mask[:, :, mni.shape[2], np.newaxis]
     return nb.Nifti1Image(deface_ear_mask, affine_ext)
 
 MODEL_CACHE = {}

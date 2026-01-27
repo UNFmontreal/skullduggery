@@ -13,7 +13,7 @@ import numpy as np
 import scipy.ndimage
 from datalad.support.annexrepo import AnnexRepo
 
-from .align import AffineMap, registration, warp_mask
+from .align import *
 from .mask import generate_deface_ear_mask, synthstrip_mask
 from .template import get_template
 from .utils import output_debug_images
@@ -47,12 +47,12 @@ def deface_workflow(layout, args):
 
     script_dir = os.path.dirname(__file__)
 
-    tpl_path, mask_path = get_template(args.atlas, args.ref_bids_filters)
+    resolution = 1
+    tpl_path, mask_path = get_template(args.atlas, args.ref_bids_filters, resolution=resolution)
     logging.info("loading template image: %s and mask: %s", tpl_path, mask_path)
     tmpl_image = nb.load(tpl_path)
     tmpl_image_mask = nb.load(mask_path)
-    tmpl_defacemask = generate_deface_ear_mask(tmpl_image)
-    #brain_xtractor = Extractor()
+    tmpl_defacemask = generate_deface_ear_mask(tmpl_image, resolution=resolution)
 
     for ref_image in deface_ref_images:
         subject = ref_image.entities["subject"]
@@ -83,11 +83,12 @@ def deface_workflow(layout, args):
             logging.info("reusing existing registration matrix")
             ref2tpl_affine = AffineMap(np.loadtxt(matrix_path))
         else:
-            logging.info(f"running registration of reference serie: {ref_image.path}")
+            logging.info(f"running registration of reference serie: {ref_image.relpath}")
 
-            ref2tpl_affine = registration(
-                tmpl_image, ref_image_nb, tmpl_image_mask, brain_mask_nb
-            )
+#            ref2tpl_affine = registration2(
+#                tmpl_image, ref_image_nb, tmpl_image_mask, brain_mask_nb
+#            )
+            ref2tpl_affine = registration_antspy()
             np.savetxt(matrix_path, ref2tpl_affine.affine)
             new_files.append(matrix_path)
 
@@ -115,10 +116,10 @@ def deface_workflow(layout, args):
                     is None
                 ):
                     logging.info(
-                        f"skip {serie.path} as there are no distribution restrictions metadata set."
+                        f"skip {serie.relpath} as there are no distribution restrictions metadata set."
                     )
                     continue
-            logging.info(f"defacing {serie.path}")
+            logging.info(f"defacing {serie.relpath}")
 
             if args.datalad:
                 datalad.api.get(serie.path)
@@ -128,14 +129,21 @@ def deface_workflow(layout, args):
             serie_nb = serie.get_image()
 
             # assume no repositioning of the participant to start registration
-            starting_affine = np.linalg.inv(serie_nb.affine).dot(ref_image_nb.affine)
-            serie2ref_affine = registration(
-                ref_image_nb, serie_nb, brain_mask_nb, None, rigid=True
+            #starting_affine = np.linalg.inv(serie_nb.affine).dot(ref_image_nb.affine)
+            serie2ref_affine = registration2(
+                ref_image_nb, serie_nb, brain_mask_nb, None, pipeline = ["translation", "rigid"],
             )
+            print(serie2ref_affine)
             serie2tpl_affine = AffineMap(
                 serie2ref_affine.affine.dot(ref2tpl_affine.affine),
             )
             warped_mask = warp_mask(tmpl_defacemask, serie_nb, serie2tpl_affine)
+            if serie == ref_image:
+                cropped_brain = brain_mask_nb.get_fdata()[warped_mask.get_fdata()<.5]
+                nvox_cropped_brain = cropped_brain.sum()
+                if nvox_cropped_brain:
+                    logger.error("defacing mask is cropping %d voxels of the synthstrip brain mask", nvox_cropped_brain)
+
             if args.save_all_masks or serie == ref_image:
                 warped_mask_path = serie.path.replace(
                     "_%s" % serie.entities["suffix"],

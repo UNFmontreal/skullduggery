@@ -30,7 +30,9 @@ dependencies = [
     "dipy",
     "nibabel",
     "surfa",
-    "torch==2.2.1",
+#    "torch==2.2.1",
+    "antspyx",
+    "nireports",
 ]
 
 [project.scripts]
