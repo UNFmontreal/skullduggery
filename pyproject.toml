@@ -39,7 +39,7 @@ test = [
     "pre-commit==4.1.0",
     "pylint_junit",
     "pytest-cov==6.0.0",
-    "pytest-mock<3.14.1",
+    "pytest-mock<3.15.2",
     "pytest-runner",
     "pytest==8.3.4",
     "pytest-github-actions-annotate-failures",
