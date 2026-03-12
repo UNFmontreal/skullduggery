@@ -16,48 +16,6 @@ from datalad.support.annexrepo import AnnexRepo
 
 import ants, ants.core.ants_image_io
 
-
-def nifti_to_ants(nib_image):
-    """
-    Converts a given Nifti image into an ANTsPy image
-
-    Parameters
-    ----------
-        img: NiftiImage
-
-    Returns
-    -------
-        ants_image: ANTsImage
-    """
-    ndim = nib_image.ndim
-
-    if ndim < 3:
-        print("Dimensionality is less than 3.")
-        return None
-
-    q_form = nib_image.get_qform()
-    spacing = nib_image.header["pixdim"][1 : ndim + 1]
-
-    origin = np.zeros((ndim))
-    origin[:3] = q_form[:3, 3]
-
-    direction = np.diag(np.ones(ndim))
-    direction[:3, :3] = q_form[:3, :3] / spacing[:3]
-
-    ants_img = ants.core.ants_image_io.from_numpy(
-        data=nib_image.get_fdata(), origin=origin.tolist(), spacing=spacing.tolist(), direction=direction
-    )
-
-    return ants_img
-
-def ants_to_nibabel(ants_img):
-
-    aff = np.eye(4)
-    aff[:3,3] = ants_img.origin
-    aff[:3,:3] = ants_img.direction * ants_img.spacing
-
-    return nb.Nifti1Image(ants_img.numpy(), affine=aff)
-
 def registration_antspy(
     ref,
     moving,
@@ -72,7 +30,6 @@ def registration_antspy(
         moving_ants,
         type_of_transform=transform,
         initial_transform=initial_transform,
-        outprefix=moving.rstrip('.nii.gz')+'_reg',
         aff_metric="MI",
         grad_step=0.1,
         #verbose=True,

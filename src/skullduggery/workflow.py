@@ -6,19 +6,19 @@ import logging
 import os
 import tempfile
 from pathlib import Path
+from shutil import copyfile
 
 import bids
 import datalad.api
 import nibabel as nb
 import numpy as np
-import scipy.ndimage
 import nitransforms as nt
 from datalad.support.annexrepo import AnnexRepo
 
 from .align import *
-from .mask import generate_deface_ear_mask, synthstrip_mask
+from .mask import generate_deface_ear_mask
 from .template import get_template
-from .utils import output_debug_images
+from .utils import output_debug_images, get_age_and_unit
 
 
 def deface_workflow(layout, args):
@@ -37,48 +37,58 @@ def deface_workflow(layout, args):
         "extension": ["nii", "nii.gz"],
         **args.ref_bids_filters,
     }
-    deface_ref_images = layout.get(**filters)
-
-    if not len(deface_ref_images):
-        logging.info(f"no reference image found with condition {filters}")
-        return
 
     new_files, modified_files = [], []
 
-    script_dir = os.path.dirname(__file__)
+    # generate deface mask in default template space (MNI)
+    default_tpl, _ = get_template()
+    default_tpl_nb = nb.load(default_tpl)
+    default_tpl_defacemask = generate_deface_ear_mask(default_tpl_nb)
+    # save it as file for ANTS
+    _, tpl_mask_filename = tempfile.mkstemp(suffix=".nii.gz", prefix="tpl_mask")
+    default_tpl_defacemask.to_filename(tpl_mask_filename)
 
-    resolution = 1
-    tpl_path, mask_path = get_template(args.atlas, args.ref_bids_filters, resolution=resolution)
-    logging.info("loading template image: %s and mask: %s", tpl_path, mask_path)
-    tmpl_image = nb.load(tpl_path)
-    tmpl_image_mask = nb.load(mask_path)
-    tmpl_defacemask = generate_deface_ear_mask(tmpl_image, resolution=resolution)
-
-    _, tmpl_filename = tempfile.mkstemp(suffix=".nii.gz", prefix="tmpl_mask")
-    tmpl_defacemask.to_filename(tmpl_filename)
+    # lookup reference images
+    deface_ref_images = layout.get(**filters)
+    if not len(deface_ref_images):
+        logging.error(f"no reference image found with condition {filters}")
+        return
 
     for ref_image in deface_ref_images:
         subject = ref_image.entities["subject"]
         session = ref_image.entities.get("session")
+
+        # get age to get the right template if cohorts
+        age = get_age_and_unit(layout, subject, session)
+
+        # get template for that reference image
+        tpl_path, reg_to_default_tpl = get_template(
+            template_name=args.template,
+            bids_filters=args.ref_bids_filters,
+            age=age)
+        logging.info("loading template image: %s", tpl_path)
+        tpl_to_default_tpl = [nt.load(reg_to_default_tpl)] if reg_to_default_tpl else []
 
         if args.datalad:
             dlad_ds.get(ref_image.relpath)
 
         matrix_path = ref_image.path.replace(
             "_{}{}".format(ref_image.entities["suffix"], ref_image.entities["extension"]),
-            "_mod-%s_defacemaskreg.mat" % ref_image.entities["suffix"],
+            f"_from-{ref_image.entities["suffix"]}_to-{args.template}_xfm.mat"
         )
+
+
 
         if os.path.exists(matrix_path):
             logging.info("reusing existing registration matrix")
-            ref2tpl_affine = AffineMap(np.loadtxt(matrix_path))
         else:
+            # registration from ref series to template
             logging.info(f"running registration of reference serie: {ref_image.relpath}")
-
             reg = registration_antspy(str(tpl_path), ref_image.path)
-            ref_to_tpl_tx_fname = reg['fwdtransforms'][0]
-            ref_to_tpl_tx = nt.linear.load(ref_to_tpl_tx_fname)
-            new_files.append(ref_to_tpl_tx_fname)
+            copyfile(reg['fwdtransforms'][0], matrix_path)
+            new_files.append(matrix_path)
+        ref_to_tpl_tx = nt.linear.load(matrix_path)
+
 
         series_to_deface = []
         for filters in args.other_bids_filters:
@@ -99,39 +109,37 @@ def deface_workflow(layout, args):
             logging.info(f"defacing {serie.relpath}")
 
             if args.datalad:
-                datalad.api.get(serie.path)
+                dlad_ds.get(serie.path)
                 # unlock before making any change to avoid unwanted save
                 annex_repo.unlock([serie.path for serie in series_to_deface])
             serie_nb = serie.get_image()
 
-            warped_mask_path = Path(serie.path.replace(
-                "_%s" % serie.entities["suffix"],
-                "_mod-%s_defacemask" % serie.entities["suffix"],
-            ))
 
 
-            serie2ref_reg = registration_antspy(ref_image.path, serie.path, initial_transform='Identity')
+            serie2ref_reg = registration_antspy(
+                ref_image.path,
+                serie.path,
+                transform="Rigid",
+                initial_transform='Identity'
+            )
             serie2ref_tx = nt.linear.load(serie2ref_reg['fwdtransforms'][0])
             print(serie2ref_tx)
 
-
-            series2tpl = nt.manip.TransformChain([ref_to_tpl_tx, serie2ref_tx])
+            series2tpl = nt.manip.TransformChain(tpl_to_default_tpl + [ref_to_tpl_tx, serie2ref_tx])
             tpl2series = nt.linear.Affine(np.linalg.inv(series2tpl.asaffine().matrix))
             warped_mask = nt.resampling.apply(
                 tpl2series,
-                tmpl_defacemask,
+                default_tpl_defacemask,
                 reference=serie_nb,
                 order=0,
                 output_dtype=np.uint8
             )
-            """
-            warped_mask = warp_mask(tmpl_defacemask, serie_nb, serie2tpl_affine)
-            if serie == ref_image:
-                cropped_brain = brain_mask_nb.get_fdata()[warped_mask.get_fdata() < 0.5]
-                nvox_cropped_brain = cropped_brain.sum()
-                if nvox_cropped_brain:
-                    logger.error("defacing mask is cropping %d voxels of the synthstrip brain mask", nvox_cropped_brain)
-            """
+
+
+            warped_mask_path = Path(serie.path.replace(
+                "_%s" % serie.entities["suffix"],
+                f"_space-{serie.entities["suffix"]}_desc-deface_mask",
+            ))
             if args.save_all_masks or serie == ref_image:
                 if os.path.exists(warped_mask_path):
                     logging.warning(f"{warped_mask_path} already exists : will not overwrite, clean before rerun")
@@ -149,7 +157,7 @@ def deface_workflow(layout, args):
 
     if args.datalad and len(modified_files):
         logging.info("saving files changes in datalad")
-        datalad.api.save(
+        dlad_ds.save(
             modified_files + new_files,
             message="deface %d series/images and update distribution-restrictions" % len(modified_files),
         )
