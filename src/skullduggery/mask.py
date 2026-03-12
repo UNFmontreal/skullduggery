@@ -33,8 +33,8 @@ def generate_deface_ear_mask(mni, resolution=1):
     deface_ear_mask[-ear_marker[0] :, :, : ear_marker[1]] = 0
     x_coords = np.round(np.linspace(ear_marker[0], ear_marker2[0], ear_marker2[1] - ear_marker[1])).astype(np.int32)
     for z, x in zip(range(ear_marker[1], ear_marker2[1]), x_coords):
-        deface_ear_mask[:x, ear_y_marker[0]:ear_y_marker[1], z] = 0
-        deface_ear_mask[-x:, ear_y_marker[0]:ear_y_marker[1], z] = 0
+        deface_ear_mask[:x, ear_y_marker[0] : ear_y_marker[1], z] = 0
+        deface_ear_mask[-x:, ear_y_marker[0] : ear_y_marker[1], z] = 0
 
     # remove data on the image size where the body doesn't extend
     deface_ear_mask[-1] = 0

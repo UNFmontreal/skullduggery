@@ -3,6 +3,7 @@ from __future__ import annotations
 import ants
 import ants.core.ants_image_io
 
+
 def registration_antspy(
     ref,
     moving,
@@ -19,6 +20,6 @@ def registration_antspy(
         initial_transform=initial_transform,
         aff_metric="MI",
         grad_step=0.1,
-        #verbose=True,
+        # verbose=True,
     )
     return reg

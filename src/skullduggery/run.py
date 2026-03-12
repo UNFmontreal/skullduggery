@@ -27,6 +27,7 @@ else:
     )
     logging.root.setLevel(logging.INFO)
 
+
 def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter,
@@ -90,7 +91,7 @@ def parse_args():
         action="store",
         type=_bids_filter,
         required=False,
-        default= [{"datatype": "anat"}],
+        default=[{"datatype": "anat"}],
         help="path to or inline json with pybids filters to select all images to deface",
     )
     parser.add_argument("--deface-sensitive", help="select series to deface using git-annex metadata string")

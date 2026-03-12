@@ -60,9 +60,8 @@ def deface_workflow(layout, args):
 
         # get template for that reference image
         tpl_path, reg_to_default_tpl = get_template(
-            template_name=args.template,
-            bids_filters=args.ref_bids_filters,
-            age=age)
+            template_name=args.template, bids_filters=args.ref_bids_filters, age=age
+        )
         logging.info("loading template image: %s", tpl_path)
         tpl_to_default_tpl = [nt.load(reg_to_default_tpl)] if reg_to_default_tpl else []
 
@@ -71,21 +70,18 @@ def deface_workflow(layout, args):
 
         matrix_path = ref_image.path.replace(
             "_{}{}".format(ref_image.entities["suffix"], ref_image.entities["extension"]),
-            f"_from-{ref_image.entities['suffix']}_to-{args.template}_xfm.mat"
+            f"_from-{ref_image.entities['suffix']}_to-{args.template}_xfm.mat",
         )
 
-
-
         if os.path.exists(matrix_path):
-            logging.info("reusing existing registration matrix")
+            logging.info("reusing existing registration matrix: %s", matrix_path)
         else:
             # registration from ref series to template
-            logging.info(f"running registration of reference serie: {ref_image.relpath}")
+            logging.info("running registration of reference serie: %s", ref_image.relpath)
             reg = registration_antspy(str(tpl_path), ref_image.path)
-            copyfile(reg['fwdtransforms'][0], matrix_path)
+            copyfile(reg["fwdtransforms"][0], matrix_path)
             new_files.append(matrix_path)
         ref_to_tpl_tx = nt.linear.load(matrix_path)
-
 
         series_to_deface = []
         for filters in args.other_bids_filters:
@@ -101,9 +97,9 @@ def deface_workflow(layout, args):
         for serie in series_to_deface:
             if args.deface_sensitive:
                 if next(annex_repo.get_metadata(serie.path))[1].get("distribution-restrictions") is None:
-                    logging.info(f"skip {serie.relpath} as there are no distribution restrictions metadata set.")
+                    logging.info("skip %s as there are no distribution restrictions metadata set.", serie.relpath)
                     continue
-            logging.info(f"defacing {serie.relpath}")
+            logging.info("defacing %s", serie.relpath)
 
             if args.datalad:
                 dlad_ds.get(serie.path)
@@ -111,32 +107,24 @@ def deface_workflow(layout, args):
                 annex_repo.unlock([serie.path for serie in series_to_deface])
             serie_nb = serie.get_image()
 
-
-
             serie2ref_reg = registration_antspy(
-                ref_image.path,
-                serie.path,
-                transform="Rigid",
-                initial_transform='Identity'
+                ref_image.path, serie.path, transform="Rigid", initial_transform="Identity"
             )
-            serie2ref_tx = nt.linear.load(serie2ref_reg['fwdtransforms'][0])
+            serie2ref_tx = nt.linear.load(serie2ref_reg["fwdtransforms"][0])
             print(serie2ref_tx)
 
             series2tpl = nt.manip.TransformChain(tpl_to_default_tpl + [ref_to_tpl_tx, serie2ref_tx])
             tpl2series = nt.linear.Affine(np.linalg.inv(series2tpl.asaffine().matrix))
             warped_mask = nt.resampling.apply(
-                tpl2series,
-                default_tpl_defacemask,
-                reference=serie_nb,
-                order=0,
-                output_dtype=np.uint8
+                tpl2series, default_tpl_defacemask, reference=serie_nb, order=0, output_dtype=np.uint8
             )
 
-
-            warped_mask_path = Path(serie.path.replace(
-                "_%s" % serie.entities["suffix"],
-                f"_space-{serie.entities['suffix']}_desc-deface_mask",
-            ))
+            warped_mask_path = Path(
+                serie.path.replace(
+                    "_%s" % serie.entities["suffix"],
+                    f"_space-{serie.entities['suffix']}_desc-deface_mask",
+                )
+            )
             if args.save_all_masks or serie == ref_image:
                 if os.path.exists(warped_mask_path):
                     logging.warning(f"{warped_mask_path} already exists : will not overwrite, clean before rerun")
