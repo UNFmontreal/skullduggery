@@ -4,6 +4,7 @@ import argparse
 import json
 import logging
 import os
+import tempfile
 from pathlib import Path
 
 import bids
@@ -11,6 +12,7 @@ import datalad.api
 import nibabel as nb
 import numpy as np
 import scipy.ndimage
+import nitransforms as nt
 from datalad.support.annexrepo import AnnexRepo
 
 from .align import *
@@ -27,14 +29,12 @@ def deface_workflow(layout, args):
         dlad_ds = datalad.api.Dataset(args.bids_path)
         annex_repo = dlad_ds.repo
 
-    subject_list = (
-        args.participant_label if args.participant_label else bids.layout.Query.ANY
-    )
+    subject_list = args.participant_label if args.participant_label else bids.layout.Query.ANY
     session_list = args.session_label if args.session_label else bids.layout.Query.ANY
     filters = {
-        'subject': subject_list,
-        'session': session_list,
-        'extension': ['nii','nii.gz'],
+        "subject": subject_list,
+        "session": session_list,
+        "extension": ["nii", "nii.gz"],
         **args.ref_bids_filters,
     }
     deface_ref_images = layout.get(**filters)
@@ -54,30 +54,20 @@ def deface_workflow(layout, args):
     tmpl_image_mask = nb.load(mask_path)
     tmpl_defacemask = generate_deface_ear_mask(tmpl_image, resolution=resolution)
 
+    _, tmpl_filename = tempfile.mkstemp(suffix=".nii.gz", prefix="tmpl_mask")
+    tmpl_defacemask.to_filename(tmpl_filename)
+
     for ref_image in deface_ref_images:
         subject = ref_image.entities["subject"]
-        session = ref_image.entities["session"]
+        session = ref_image.entities.get("session")
 
-        datalad.api.get(ref_image.path)
-        ref_image_nb = ref_image.get_image()
+        if args.datalad:
+            dlad_ds.get(ref_image.relpath)
 
         matrix_path = ref_image.path.replace(
             "_{}{}".format(ref_image.entities["suffix"], ref_image.entities["extension"]),
             "_mod-%s_defacemaskreg.mat" % ref_image.entities["suffix"],
         )
-
-        logging.info("mask reference image")
-        brain_mask = list(synthstrip_mask(ref_image.path, ""))
-
-        brain_mask_nb = nb.Nifti1Image(brain_mask[0][1].astype(np.uint8), ref_image_nb.affine)
-        brain_mask_entities = { **ref_image.entities, "suffix": "brainmask", "mod": ref_image.entities['suffix'] }
-        brain_mask_path = layout.build_path(
-            brain_mask_entities,
-            ["sub-{subject}[/ses-{session}]/{datatype<anat>|anat}/sub-{subject}[_ses-{session}][_task-{task}][_acq-{acquisition}][_ce-{ceagent}][_rec-{reconstruction}][_run-{run}][_mod-{modality}]_{suffix<brainmask>}{extension<.nii|.nii.gz|.json>|.nii.gz}"],
-            validate=False,
-        )
-        logging.info("saving brain mask as %s", brain_mask_path)
-        brain_mask_nb.to_filename(brain_mask_path)
 
         if os.path.exists(matrix_path):
             logging.info("reusing existing registration matrix")
@@ -85,15 +75,10 @@ def deface_workflow(layout, args):
         else:
             logging.info(f"running registration of reference serie: {ref_image.relpath}")
 
-#            ref2tpl_affine = registration2(
-#                tmpl_image, ref_image_nb, tmpl_image_mask, brain_mask_nb
-#            )
-            ref2tpl_affine = registration_antspy()
-            np.savetxt(matrix_path, ref2tpl_affine.affine)
-            new_files.append(matrix_path)
-
-        if args.debug_images:
-            output_debug_images(tmpl_image, ref_image, ref2tpl_affine)
+            reg = registration_antspy(str(tpl_path), ref_image.path)
+            ref_to_tpl_tx_fname = reg['fwdtransforms'][0]
+            ref_to_tpl_tx = nt.linear.load(ref_to_tpl_tx_fname)
+            new_files.append(ref_to_tpl_tx_fname)
 
         series_to_deface = []
         for filters in args.other_bids_filters:
@@ -106,18 +91,10 @@ def deface_workflow(layout, args):
                 )
             )
 
-
         for serie in series_to_deface:
-            if args.datalad:
-                if (
-                    next(annex_repo.get_metadata(serie.path))[1].get(
-                        "distribution-restrictions"
-                    )
-                    is None
-                ):
-                    logging.info(
-                        f"skip {serie.relpath} as there are no distribution restrictions metadata set."
-                    )
+            if args.deface_sensitive:
+                if next(annex_repo.get_metadata(serie.path))[1].get("distribution-restrictions") is None:
+                    logging.info(f"skip {serie.relpath} as there are no distribution restrictions metadata set.")
                     continue
             logging.info(f"defacing {serie.relpath}")
 
@@ -125,34 +102,39 @@ def deface_workflow(layout, args):
                 datalad.api.get(serie.path)
                 # unlock before making any change to avoid unwanted save
                 annex_repo.unlock([serie.path for serie in series_to_deface])
-
             serie_nb = serie.get_image()
 
-            # assume no repositioning of the participant to start registration
-            #starting_affine = np.linalg.inv(serie_nb.affine).dot(ref_image_nb.affine)
-            serie2ref_affine = registration2(
-                ref_image_nb, serie_nb, brain_mask_nb, None, pipeline = ["translation", "rigid"],
+            warped_mask_path = Path(serie.path.replace(
+                "_%s" % serie.entities["suffix"],
+                "_mod-%s_defacemask" % serie.entities["suffix"],
+            ))
+
+
+            serie2ref_reg = registration_antspy(ref_image.path, serie.path, initial_transform='Identity')
+            serie2ref_tx = nt.linear.load(serie2ref_reg['fwdtransforms'][0])
+            print(serie2ref_tx)
+
+
+            series2tpl = nt.manip.TransformChain([ref_to_tpl_tx, serie2ref_tx])
+            tpl2series = nt.linear.Affine(np.linalg.inv(series2tpl.asaffine().matrix))
+            warped_mask = nt.resampling.apply(
+                tpl2series,
+                tmpl_defacemask,
+                reference=serie_nb,
+                order=0,
+                output_dtype=np.uint8
             )
-            print(serie2ref_affine)
-            serie2tpl_affine = AffineMap(
-                serie2ref_affine.affine.dot(ref2tpl_affine.affine),
-            )
+            """
             warped_mask = warp_mask(tmpl_defacemask, serie_nb, serie2tpl_affine)
             if serie == ref_image:
-                cropped_brain = brain_mask_nb.get_fdata()[warped_mask.get_fdata()<.5]
+                cropped_brain = brain_mask_nb.get_fdata()[warped_mask.get_fdata() < 0.5]
                 nvox_cropped_brain = cropped_brain.sum()
                 if nvox_cropped_brain:
                     logger.error("defacing mask is cropping %d voxels of the synthstrip brain mask", nvox_cropped_brain)
-
+            """
             if args.save_all_masks or serie == ref_image:
-                warped_mask_path = serie.path.replace(
-                    "_%s" % serie.entities["suffix"],
-                    "_mod-%s_defacemask" % serie.entities["suffix"],
-                )
                 if os.path.exists(warped_mask_path):
-                    logging.warning(
-                        f"{warped_mask_path} already exists : will not overwrite, clean before rerun"
-                    )
+                    logging.warning(f"{warped_mask_path} already exists : will not overwrite, clean before rerun")
                 else:
                     warped_mask.to_filename(warped_mask_path)
                     new_files.append(warped_mask_path)
@@ -169,10 +151,7 @@ def deface_workflow(layout, args):
         logging.info("saving files changes in datalad")
         datalad.api.save(
             modified_files + new_files,
-            message="deface %d series/images and update distribution-restrictions"
-            % len(modified_files),
+            message="deface %d series/images and update distribution-restrictions" % len(modified_files),
         )
         logging.info("saving metadata changes in datalad")
-        annex_repo.set_metadata(
-            modified_files, remove={"distribution-restrictions": "sensitive"}
-        )
+        annex_repo.set_metadata(modified_files, remove={"distribution-restrictions": "sensitive"})

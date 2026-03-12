@@ -11,7 +11,7 @@ import surfa as sf
 import torch
 import torch.nn as nn
 
-ref = '''
+ref = """
 If you use SynthStrip in your analysis, please cite:
 ----------------------------------------------------
 SynthStrip: Skull-Stripping for Any Brain Image
@@ -20,7 +20,8 @@ NeuroImage 206 (2022), 119474
 https://doi.org/10.1016/j.neuroimage.2022.119474
 
 Website: https://synthstrip.io
-'''
+"""
+
 
 def extend_sdt(sdt, border=1):
     """Extend SynthStrip's narrow-band signed distance transform (SDT).
@@ -67,14 +68,16 @@ def extend_sdt(sdt, border=1):
 
 class StripModel(nn.Module):
 
-    def __init__(self,
-                 nb_features=16,
-                 nb_levels=7,
-                 feat_mult=2,
-                 max_features=64,
-                 nb_conv_per_level=2,
-                 max_pool=2,
-                 return_mask=False):
+    def __init__(
+        self,
+        nb_features=16,
+        nb_levels=7,
+        feat_mult=2,
+        max_features=64,
+        nb_conv_per_level=2,
+        max_pool=2,
+        return_mask=False,
+    ):
 
         super().__init__()
 
@@ -84,15 +87,12 @@ class StripModel(nn.Module):
         # build feature list automatically
         if isinstance(nb_features, int):
             if nb_levels is None:
-                raise ValueError('must provide unet nb_levels if nb_features is an integer')
+                raise ValueError("must provide unet nb_levels if nb_features is an integer")
             feats = np.round(nb_features * feat_mult ** np.arange(nb_levels)).astype(int)
             feats = np.clip(feats, 1, max_features)
-            nb_features = [
-                np.repeat(feats[:-1], nb_conv_per_level),
-                np.repeat(np.flip(feats), nb_conv_per_level)
-            ]
+            nb_features = [np.repeat(feats[:-1], nb_conv_per_level), np.repeat(np.flip(feats), nb_conv_per_level)]
         elif nb_levels is not None:
-            raise ValueError('cannot use nb_levels if nb_features is not an integer')
+            raise ValueError("cannot use nb_levels if nb_features is not an integer")
 
         # extract any surplus (full resolution) decoder convolutions
         enc_nf, dec_nf = nb_features
@@ -105,9 +105,9 @@ class StripModel(nn.Module):
             max_pool = [max_pool] * self.nb_levels
 
         # cache downsampling / upsampling operations
-        MaxPooling = getattr(nn, 'MaxPool%dd' % ndims)
+        MaxPooling = getattr(nn, "MaxPool%dd" % ndims)
         self.pooling = [MaxPooling(s) for s in max_pool]
-        self.upsampling = [nn.Upsample(scale_factor=s, mode='nearest') for s in max_pool]
+        self.upsampling = [nn.Upsample(scale_factor=s, mode="nearest") for s in max_pool]
 
         # configure encoder (down-sampling path)
         prev_nf = 1
@@ -172,22 +172,23 @@ class StripModel(nn.Module):
 
         return x
 
+
 class ConvBlock(nn.Module):
     """
     Specific convolutional block followed by leakyrelu for unet.
     """
 
-    def __init__(self, ndims, in_channels, out_channels, stride=1, activation='leaky'):
+    def __init__(self, ndims, in_channels, out_channels, stride=1, activation="leaky"):
         super().__init__()
 
-        Conv = getattr(nn, 'Conv%dd' % ndims)
+        Conv = getattr(nn, "Conv%dd" % ndims)
         self.conv = Conv(in_channels, out_channels, 3, stride, 1)
-        if activation == 'leaky':
+        if activation == "leaky":
             self.activation = nn.LeakyReLU(0.2)
         elif activation == None:
             self.activation = None
         else:
-            raise ValueError(f'Unknown activation: {activation}')
+            raise ValueError(f"Unknown activation: {activation}")
 
     def forward(self, x):
         out = self.conv(x)
@@ -200,17 +201,17 @@ def synthstrip_wf(args=None):
 
     if not args:
         # parse command line
-        p = argparse.ArgumentParser(description='Robust, universal skull-stripping for brain images of any type.')
-        p.add_argument('-i', '--image', metavar='FILE', required=True, help='input image to skullstrip')
-        p.add_argument('-o', '--out', metavar='FILE', help='save stripped image to file')
-        p.add_argument('-m', '--mask', metavar='FILE', help='save binary brain mask to file')
-        p.add_argument('-d', '--sdt', metavar='FILE', help='save distance transform to file')
-        p.add_argument('-g', '--gpu', action='store_true', help='use the GPU')
-        p.add_argument('-b', '--border', default=1, type=float, help='mask border threshold in mm, defaults to 1')
-        p.add_argument('-t', '--threads', type=int, help='PyTorch CPU threads, PyTorch default if unset')
-        p.add_argument('--no-csf', action='store_true', help='exclude CSF from brain border')
-        p.add_argument('--model', metavar='FILE', help='alternative model weights')
-        if len(sys.argv) == 1 or '-h' in sys.argv or '--help' in sys.argv:
+        p = argparse.ArgumentParser(description="Robust, universal skull-stripping for brain images of any type.")
+        p.add_argument("-i", "--image", metavar="FILE", required=True, help="input image to skullstrip")
+        p.add_argument("-o", "--out", metavar="FILE", help="save stripped image to file")
+        p.add_argument("-m", "--mask", metavar="FILE", help="save binary brain mask to file")
+        p.add_argument("-d", "--sdt", metavar="FILE", help="save distance transform to file")
+        p.add_argument("-g", "--gpu", action="store_true", help="use the GPU")
+        p.add_argument("-b", "--border", default=1, type=float, help="mask border threshold in mm, defaults to 1")
+        p.add_argument("-t", "--threads", type=int, help="PyTorch CPU threads, PyTorch default if unset")
+        p.add_argument("--no-csf", action="store_true", help="exclude CSF from brain border")
+        p.add_argument("--model", metavar="FILE", help="alternative model weights")
+        if len(sys.argv) == 1 or "-h" in sys.argv or "--help" in sys.argv:
             p.print_help()
             print(ref)
             exit(1)
@@ -218,22 +219,22 @@ def synthstrip_wf(args=None):
 
     # sanity check on the inputs
     if not args.out and not args.mask and not args.sdt:
-        sf.system.fatal('Must provide at least one -o, -m, or -d output flag.')
+        sf.system.fatal("Must provide at least one -o, -m, or -d output flag.")
 
     # necessary for speed gains (I think)
     torch.backends.cudnn.benchmark = True
     torch.backends.cudnn.deterministic = True
 
     # configure device
-    gpu = os.environ.get('CUDA_VISIBLE_DEVICES', '0')
+    gpu = os.environ.get("CUDA_VISIBLE_DEVICES", "0")
     if args.gpu:
-        os.environ['CUDA_VISIBLE_DEVICES'] = gpu
-        device = torch.device('cuda')
-        device_name = 'GPU'
+        os.environ["CUDA_VISIBLE_DEVICES"] = gpu
+        device = torch.device("cuda")
+        device_name = "GPU"
     else:
-        os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-        device = torch.device('cpu')
-        device_name = 'CPU'
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+        device = torch.device("cpu")
+        device_name = "CPU"
         if args.threads is not None:
             torch.set_num_threads(args.threads)
 
@@ -245,35 +246,35 @@ def synthstrip_wf(args=None):
     # load model weights
     if args.model is not None:
         modelfile = args.model
-        print('Using custom model weights')
+        print("Using custom model weights")
     else:
-        version = '1'
-        print(f'Running SynthStrip model version {version}')
-        fshome = os.environ.get('FREESURFER_HOME')
+        version = "1"
+        print(f"Running SynthStrip model version {version}")
+        fshome = os.environ.get("FREESURFER_HOME")
         if fshome is None:
-            sf.system.fatal('FREESURFER_HOME env variable must be set! Make sure FreeSurfer is properly sourced.')
+            sf.system.fatal("FREESURFER_HOME env variable must be set! Make sure FreeSurfer is properly sourced.")
         if args.no_csf:
-            print('Excluding CSF from brain boundary')
-            modelfile = os.path.join(fshome, 'models', f'synthstrip.nocsf.{version}.pt')
+            print("Excluding CSF from brain boundary")
+            modelfile = os.path.join(fshome, "models", f"synthstrip.nocsf.{version}.pt")
         else:
-            modelfile = os.path.join(fshome, 'models', f'synthstrip.{version}.pt')
+            modelfile = os.path.join(fshome, "models", f"synthstrip.{version}.pt")
     checkpoint = torch.load(modelfile, map_location=device)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    model.load_state_dict(checkpoint["model_state_dict"])
 
     # load input volume
     image = sf.load_volume(args.image)
-    print(f'Input image read from: {args.image}')
+    print(f"Input image read from: {args.image}")
 
     # loop over frames (try not to keep too much data in memory)
-    print(f'Processing frame (of {image.nframes}):', end=' ', flush=True)
+    print(f"Processing frame (of {image.nframes}):", end=" ", flush=True)
     dist = []
     mask = []
     for f in range(image.nframes):
-        print(f + 1, end=' ', flush=True)
+        print(f + 1, end=" ", flush=True)
         frame = image.new(image.framed_data[..., f])
 
         # conform, fit to shape with factors of 64
-        conformed = frame.conform(voxsize=1.0, dtype='float32', method='nearest', orientation='LIA').crop_to_bbox()
+        conformed = frame.conform(voxsize=1.0, dtype="float32", method="nearest", orientation="LIA").crop_to_bbox()
         target_shape = np.clip(np.ceil(np.array(conformed.shape[:3]) / 64).astype(int) * 64, 192, 320)
         conformed = conformed.reshape(target_shape)
 
@@ -297,22 +298,22 @@ def synthstrip_wf(args=None):
     # combine frames and end line
     dist = sf.stack(dist)
     mask = sf.stack(mask)
-    print('done')
+    print("done")
 
     # write the masked output
     if args.out:
         image[mask == 0] = np.min([0, image.min()])
         image.save(args.out)
-        print(f'Masked image saved to: {args.out}')
+        print(f"Masked image saved to: {args.out}")
 
     # write the brain mask
     if args.mask:
         image.new(mask).save(args.mask)
-        print(f'Binary brain mask saved to: {args.mask}')
+        print(f"Binary brain mask saved to: {args.mask}")
 
     # write the distance transform
     if args.sdt:
         image.new(dist).save(args.sdt)
-        print(f'Distance transform saved to: {args.sdt}')
+        print(f"Distance transform saved to: {args.sdt}")
 
     print(ref)

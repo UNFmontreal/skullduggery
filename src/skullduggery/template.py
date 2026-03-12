@@ -2,21 +2,22 @@ import templateflow.api as tplflow
 from typing import Dict, Any, Tuple
 from pathlib import Path
 
-def get_template(template_name: str, ref_bids_filters: Dict[str, Any], resolution=2) -> Tuple[Path, Path]:
+
+def get_template(template_name: str, ref_bids_filters: Dict[str, Any], resolution=1) -> Tuple[Path, Path]:
     # get appropriate contrast image from template name
     # and bids filters for the reference image
     suffix = ref_bids_filters["suffix"]
 
     tpl = tplflow.get(
         template_name,
-        suffix = suffix,
-        resolution = resolution,
+        suffix=suffix,
+        resolution=resolution,
     )
     mask = tplflow.get(
         template_name,
-        desc='brain',
-        suffix='mask',
-        resolution = resolution,
+        desc="brain",
+        suffix="mask",
+        resolution=resolution,
     )
     # TODO: write fallback to get approximately matching contrasts
     # or suggest alternative templates with existing contrast

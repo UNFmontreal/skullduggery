@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from bids.layout import Query
 
+
 def _filter_pybids_any(dct):
     return {k: Query.ANY if v == "*" else v for k, v in dct.items()}
 

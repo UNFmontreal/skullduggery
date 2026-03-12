@@ -85,7 +85,7 @@ def parse_args():
         dest="ref_bids_filters",
         action="store",
         type=_bids_filter,
-        required=True,
+        default={"suffix": "T1w", "datatype": "anat"},
         help="path to or inline json with pybids filters to select session reference to register defacemask",
     )
     parser.add_argument(
@@ -93,9 +93,11 @@ def parse_args():
         dest="other_bids_filters",
         action="store",
         type=_bids_filter,
-        required=True,
+        required=False,
+        default= [{"datatype": "anat"}],
         help="path to or inline json with pybids filters to select all images to deface",
     )
+    parser.add_argument("--deface-sensitive", help="select series to deface using git-annex metadata string")
     parser.add_argument(
         "--debug",
         dest="debug_level",
@@ -104,29 +106,19 @@ def parse_args():
         help="debug level",
     )
     return parser.parse_args()
-"""
-def parse_args() -> dict:
 
-    p = argparse.ArgumentParser(description="forbids - setup and validate protocol compliance")
-    p.add_argument("command", help="init or validate")
-    p.add_argument("bids_path", help="path to the BIDS dataset")
-    p.add_argument("--participant-label", nargs="+",)
-    p.add_argument("--session-label", nargs="*", default=[bids.layout.Query.NONE, bids.layout.Query.ANY])
-    return p.parse_args()
-"""
 
 def main() -> None:
     args = parse_args()
     pybids_cache_path = os.path.join(args.bids_path, PYBIDS_CACHE_PATH)
 
-    layout = bids.BIDSLayout(
-        os.path.abspath(args.bids_path)
-        )
+    layout = bids.BIDSLayout(os.path.abspath(args.bids_path))
     success = False
 
     success = deface_workflow(layout, args)
 
     exit(0 if success else 1)
+
 
 if __name__ == "__main__":
     main()
