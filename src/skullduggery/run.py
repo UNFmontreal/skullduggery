@@ -9,10 +9,10 @@ import coloredlogs
 
 from .bids import _bids_filter
 from .workflow import deface_workflow
+from .template import DEFAULT_TEMPLATE
 
 DEBUG = bool(os.environ.get("DEBUG", False))
 PYBIDS_CACHE_PATH = ".pybids_cache"
-
 
 coloredlogs.install()
 if DEBUG:
@@ -56,8 +56,8 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--atlas",
-        default="MNI152NLin2009cAsym",
+        "--template",
+        default=DEFAULT_TEMPLATE,
         help="a templateflow template (with cohort for pediatrics ones)",
     )
     parser.add_argument(

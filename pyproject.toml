@@ -27,10 +27,7 @@ dependencies = [
     "coloredlogs",
     "pybids",
     "datalad",
-    "dipy",
     "nibabel",
-    "surfa",
-#    "torch==2.2.1",
     "antspyx",
     "nireports",
 ]
