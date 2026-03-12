@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import argparse
-import json
 import logging
 import os
 import tempfile
@@ -13,12 +11,11 @@ import datalad.api
 import nibabel as nb
 import numpy as np
 import nitransforms as nt
-from datalad.support.annexrepo import AnnexRepo
 
-from .align import *
+from .align import registration_antspy
 from .mask import generate_deface_ear_mask
 from .template import get_template
-from .utils import output_debug_images, get_age_and_unit
+from .utils import get_age_and_unit
 
 
 def deface_workflow(layout, args):
@@ -74,7 +71,7 @@ def deface_workflow(layout, args):
 
         matrix_path = ref_image.path.replace(
             "_{}{}".format(ref_image.entities["suffix"], ref_image.entities["extension"]),
-            f"_from-{ref_image.entities["suffix"]}_to-{args.template}_xfm.mat"
+            f"_from-{ref_image.entities['suffix']}_to-{args.template}_xfm.mat"
         )
 
 
@@ -138,7 +135,7 @@ def deface_workflow(layout, args):
 
             warped_mask_path = Path(serie.path.replace(
                 "_%s" % serie.entities["suffix"],
-                f"_space-{serie.entities["suffix"]}_desc-deface_mask",
+                f"_space-{serie.entities['suffix']}_desc-deface_mask",
             ))
             if args.save_all_masks or serie == ref_image:
                 if os.path.exists(warped_mask_path):

@@ -12,7 +12,6 @@ from .workflow import deface_workflow
 from .template import DEFAULT_TEMPLATE
 
 DEBUG = bool(os.environ.get("DEBUG", False))
-PYBIDS_CACHE_PATH = ".pybids_cache"
 
 coloredlogs.install()
 if DEBUG:
@@ -27,9 +26,6 @@ else:
         format="%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s", level=logging.INFO
     )
     logging.root.setLevel(logging.INFO)
-
-lgr = logging.getLogger(__name__)
-
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -110,7 +106,6 @@ def parse_args():
 
 def main() -> None:
     args = parse_args()
-    pybids_cache_path = os.path.join(args.bids_path, PYBIDS_CACHE_PATH)
 
     layout = bids.BIDSLayout(os.path.abspath(args.bids_path))
     success = False

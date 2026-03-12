@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 
 import nibabel as nb
 import numpy as np
