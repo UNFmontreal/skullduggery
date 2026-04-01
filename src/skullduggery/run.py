@@ -97,7 +97,7 @@ def parse_args():
         default= [{"datatype": "anat"}],
         help="path to or inline json with pybids filters to select all images to deface",
     )
-    parser.add_argument("--deface-sensitive", help="select series to deface using git-annex metadata string")
+    parser.add_argument("--deface-sensitive", action="store_true", help="select series to deface using git-annex metadata string")
     parser.add_argument(
         "--debug",
         dest="debug_level",
