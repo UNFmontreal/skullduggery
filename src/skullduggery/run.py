@@ -8,6 +8,7 @@ import bids
 import coloredlogs
 
 from .bids import _bids_filter
+from .utils import SUPPORTED_AGE_UNITS
 from .workflow import deface_workflow
 from .template import DEFAULT_TEMPLATE
 
@@ -29,6 +30,25 @@ else:
     logging.root.setLevel(logging.INFO)
 
 lgr = logging.getLogger(__name__)
+
+
+def _default_age(value: str) -> tuple[float, str]:
+    parts = value.split(":", maxsplit=1)
+    if len(parts) != 2:
+        raise argparse.ArgumentTypeError("default age must be in the form <value>:<unit>")
+
+    age_value, age_unit = parts
+    try:
+        parsed_age = float(age_value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("default age value must be numeric") from exc
+
+    normalized_unit = age_unit.lower()
+    if normalized_unit not in SUPPORTED_AGE_UNITS:
+        supported_units = ", ".join(SUPPORTED_AGE_UNITS)
+        raise argparse.ArgumentTypeError(f"default age unit must be one of: {supported_units}")
+
+    return parsed_age, normalized_unit
 
 
 def parse_args():
@@ -59,6 +79,13 @@ def parse_args():
         "--template",
         default=DEFAULT_TEMPLATE,
         help="a templateflow template (with cohort for pediatrics ones)",
+    )
+    parser.add_argument(
+        "--default-age",
+        action="store",
+        type=_default_age,
+        default=None,
+        help="fallback age to use when participants.tsv has no age for a subject, formatted as <value>:<unit>",
     )
     parser.add_argument(
         "--force-reindex",
