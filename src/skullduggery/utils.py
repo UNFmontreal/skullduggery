@@ -8,7 +8,7 @@ def get_age_and_unit(layout, subject, session=None):
     participants_df = participants_tsv.get_df()
     session_df_mask = participants_df["participant_id"] == f"sub-{subject}"
     if session:
-        session_df_mask = session_df_mask & participants_df["session_id"] == f"ses-{session}"
+        session_df_mask = session_df_mask & (participants_df["session_id"] == f"ses-{session}")
     participant_age = participants_df.loc[session_df_mask, "age"].values[0]
     age_unit = _get_age_units(participants_tsv.get_metadata())
     return (participant_age, age_unit)
