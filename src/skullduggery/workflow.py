@@ -160,7 +160,7 @@ def deface_workflow(layout, args):
         logging.info("saving files changes in datalad")
         dlad_ds.save(
             modified_files + new_files,
-            message="deface %d series/images and update distribution-restrictions" % len(modified_files),
+            message="__deface__ %d series/images and update distribution-restrictions" % len(modified_files),
         )
         logging.info("saving metadata changes in datalad")
         annex_repo.set_metadata(modified_files, remove={"distribution-restrictions": "sensitive"})
