@@ -9,7 +9,7 @@ def get_template(
     bids_filters: Dict[str, Any] = {'suffix':'T1w'},
     age: Tuple[float, str] | None = None,
     resolution=1
-) -> Tuple[Path, Path]:
+) -> Tuple[Path, Path | None]:
     # get appropriate contrast image from template name
     # and bids filters for the reference image
     suffix = bids_filters["suffix"]
@@ -20,7 +20,7 @@ def get_template(
             raise RuntimeError('age is required for templates with cohorts')
         for cohort, cohort_metas in tpl_metas.get('cohort').items():
             if age[1]==cohort_metas['units']:
-                if cohort_metas['age'][0] < age[0] <  cohort_metas['age'][0]:
+                if cohort_metas['age'][0] <= age[0] <= cohort_metas['age'][1]:
                     break
         else:
             raise RuntimeError(f"template {template_name} is not appropriate for age {age}")

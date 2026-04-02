@@ -76,6 +76,10 @@ def parse_args():
         help="Save mask for all defaced series, default is only saving mask for reference serie.",
     )
     parser.add_argument(
+        "--report-dir",
+        help="directory to write nireports-based HTML reports and defacing mosaics",
+    )
+    parser.add_argument(
         "--debug-images",
         action="store_true",
         help="Output debug images in the current directory",
@@ -94,7 +98,7 @@ def parse_args():
         action="store",
         type=_bids_filter,
         required=False,
-        default= [{"datatype": "anat"}],
+        default=[{"datatype": "anat"}],
         help="path to or inline json with pybids filters to select all images to deface",
     )
     parser.add_argument("--deface-sensitive", help="select series to deface using git-annex metadata string")
