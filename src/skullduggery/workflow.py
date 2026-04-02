@@ -14,6 +14,7 @@ import nitransforms as nt
 
 from .align import registration_antspy
 from .mask import generate_deface_ear_mask
+from .report import generate_deface_mosaic_report
 from .template import get_template
 from .utils import get_age_and_unit
 
@@ -139,6 +140,14 @@ def deface_workflow(layout, args):
             )
             masked_serie.to_filename(serie.path)
             modified_files.append(serie.path)
+
+            logging.info("generating deface mosaic report: %s", serie.relpath)
+            report_svg_path = generate_deface_mosaic_report(
+                serie.path,
+                warped_mask_path,
+                
+            )
+            new_files.append(report_svg_path)
 
     if args.datalad and len(modified_files):
         logging.info("saving files changes in datalad")
