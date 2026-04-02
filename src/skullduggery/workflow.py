@@ -12,7 +12,7 @@ import numpy as np
 
 from .align import registration_antspy
 from .mask import generate_deface_ear_mask
-from .reports import strip_image_suffix, validate_nireports, write_deface_report
+from .reports import build_defacemask_stem, strip_image_suffix, validate_nireports, write_deface_report
 from .template import get_template
 from .utils import get_age_and_unit
 
@@ -149,6 +149,7 @@ def deface_workflow(layout, args) -> bool:
                     mask_image=warped_mask,
                     report_dir=report_dir,
                     image_relpath=serie.relpath,
+                    source_suffix=serie.entities["suffix"],
                 )
                 new_files.extend([str(report_paths.html), str(report_paths.mosaic_svg)])
 
@@ -184,9 +185,9 @@ def _matrix_output_path(image_path: str, suffix: str, template_name: str) -> Pat
 
 def _mask_output_path(image_path: str, suffix: str) -> Path:
     source_path = Path(image_path)
-    stem = strip_image_suffix(source_path)
+    stem = build_defacemask_stem(source_path, source_suffix=suffix)
     extension = "".join(source_path.suffixes)
-    return source_path.with_name(f"{stem}_space-{suffix}_desc-deface_mask{extension}")
+    return source_path.with_name(f"{stem}{extension}")
 
 
 def _is_within_dataset(path: str | Path, dataset_root: Path) -> bool:

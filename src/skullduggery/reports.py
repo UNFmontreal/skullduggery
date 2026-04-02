@@ -21,6 +21,15 @@ class DefaceReportPaths:
     mosaic_svg: Path
 
 
+def build_defacemask_stem(path: str | Path, source_suffix: str | None = None) -> str:
+    stem = strip_image_suffix(path)
+    suffix = source_suffix or stem.rsplit("_", 1)[-1]
+    suffix_token = f"_{suffix}"
+    if stem.endswith(suffix_token):
+        stem = stem[: -len(suffix_token)]
+    return f"{stem}_mod-{suffix}_defacemask"
+
+
 def strip_image_suffix(path: str | Path) -> str:
     """Remove NIfTI suffixes while preserving the rest of the filename."""
     name = Path(path).name
@@ -31,14 +40,18 @@ def strip_image_suffix(path: str | Path) -> str:
     return Path(name).stem
 
 
-def build_report_paths(report_dir: str | Path, image_relpath: str | Path) -> DefaceReportPaths:
+def build_report_paths(
+    report_dir: str | Path,
+    image_relpath: str | Path,
+    source_suffix: str | None = None,
+) -> DefaceReportPaths:
     relpath = Path(image_relpath)
-    stem = strip_image_suffix(relpath)
+    stem = build_defacemask_stem(relpath, source_suffix=source_suffix)
     report_dir = Path(report_dir)
     figures_dir = report_dir / "figures" / relpath.parent
     return DefaceReportPaths(
         html=report_dir / f"{stem}.html",
-        mosaic_svg=figures_dir / f"{stem}_desc-deface_mosaic.svg",
+        mosaic_svg=figures_dir / f"{stem}.svg",
     )
 
 
@@ -52,16 +65,17 @@ def write_deface_report(
     mask_image: Any,
     report_dir: str | Path,
     image_relpath: str | Path,
+    source_suffix: str | None = None,
     title: str | None = None,
 ) -> DefaceReportPaths:
     plot_mosaic = _load_nireports_dependencies()
 
     image_relpath = str(image_relpath)
-    report_paths = build_report_paths(report_dir, image_relpath)
+    report_paths = build_report_paths(report_dir, image_relpath, source_suffix=source_suffix)
     report_paths.html.parent.mkdir(parents=True, exist_ok=True)
     report_paths.mosaic_svg.parent.mkdir(parents=True, exist_ok=True)
 
-    report_title = title or strip_image_suffix(image_relpath)
+    report_title = title or build_defacemask_stem(image_relpath, source_suffix=source_suffix)
 
     with TemporaryDirectory(prefix="skullduggery-report-") as temp_dir:
         temp_dir_path = Path(temp_dir)
