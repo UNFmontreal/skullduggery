@@ -24,7 +24,7 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 spark = [
-    "pyspark>=3.0.0"
+    "pyspark>=4.0.2"
 ]
 test = [
     "bandit[toml]==1.8.2",
