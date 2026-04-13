@@ -14,7 +14,7 @@ import nitransforms as nt
 
 from .align import registration_antspy
 from .mask import generate_deface_ear_mask
-from .report import generate_deface_mosaic_report
+from .report import generate_deface_mosaic_report, generate_figure_path
 from .template import get_template
 from .utils import get_age_and_unit
 
@@ -112,7 +112,6 @@ def deface_workflow(layout, args):
                 ref_image.path, serie.path, transform="Rigid", initial_transform="Identity"
             )
             serie2ref_tx = nt.linear.load(serie2ref_reg["fwdtransforms"][0])
-            print(serie2ref_tx)
 
             series2tpl = nt.manip.TransformChain(tpl_to_default_tpl + [ref_to_tpl_tx, serie2ref_tx])
             tpl2series = nt.linear.Affine(np.linalg.inv(series2tpl.asaffine().matrix))
@@ -120,13 +119,14 @@ def deface_workflow(layout, args):
                 tpl2series, default_tpl_defacemask, reference=serie_nb, order=0, output_dtype=np.uint8
             )
 
-            warped_mask_path = Path(
-                serie.path.replace(
-                    "_%s" % serie.entities["suffix"],
-                    f"_space-{serie.entities['suffix']}_desc-deface_mask",
-                )
-            )
+
             if args.save_all_masks or serie == ref_image:
+                warped_mask_path = Path(
+                    serie.path.replace(
+                        "_%s" % serie.entities["suffix"],
+                        f"_space-{serie.entities['suffix']}_desc-deface_mask",
+                    )
+                )
                 if os.path.exists(warped_mask_path):
                     logging.warning(f"{warped_mask_path} already exists : will not overwrite, clean before rerun")
                 else:
@@ -142,10 +142,15 @@ def deface_workflow(layout, args):
             modified_files.append(serie.path)
 
             logging.info("generating deface mosaic report: %s", serie.relpath)
+            mask_fig_path = generate_figure_path(
+                layout,
+                serie,
+                desc="mask",
+            )
             report_svg_path = generate_deface_mosaic_report(
-                serie.path,
-                warped_mask_path,
-                
+                masked_serie,
+                warped_mask,
+                mask_fig_path,
             )
             new_files.append(report_svg_path)
 

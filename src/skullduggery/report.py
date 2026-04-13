@@ -1,7 +1,17 @@
+import json
 import bids
 from pathlib import Path
-from nireports.interfaces.reporting.masks import SimpleShowMaskRPT
 from nireports.assembler.report import Report
+import nireports.assembler.report
+from nireports.assembler import data as nr_data
+
+from nibabel.spatialimages import SpatialImage
+
+from nireports.interfaces.reporting.base import compose_view
+from nireports.reportlets.mosaic import plot_segs
+
+bids_config_path = nr_data.load("nipreps.json")
+bids_config = json.loads(bids_config_path.read_bytes())
 
 
 class DefaceReport(Report):
@@ -22,24 +32,30 @@ class DefaceReport(Report):
         ]
 
 
-def generate_deface_mosaic_report(
-    masked_image_path: Path,
-    warped_mask_path: Path,
-    output_path: Path):
+def generate_deface_mosaic_report(masked_image: SpatialImage, warped_mask: SpatialImage, output_path: Path):
     """
     Generates a mosaic illustrating the results of the deface
     registration showing the defaced image against the warped mask.
     """
 
-    mosaic = SimpleShowMaskRPT(
-        background_file=str(masked_image_path),
-        mask_file=str(warped_mask_path),
-        out_report=str(output_path),
+    compose_view(
+        plot_segs(
+            image_nii=masked_image,
+            seg_niis=[warped_mask],
+            bbox_nii=warped_mask,
+            masked=True,
+        ),
+        fg_svgs=None,
+        out_file=output_path,
     )
-    mosaic.run()
 
-def generate_figure_path(series: bids.BIDSImageFile, desc: str)-> pathlib.Path:
-    entities = series.entities.copy()
-    entities['datatype'] = 'figures'
-    entities['desc'] = desc
-    bids.
+
+
+def generate_figure_path(layout: bids.BIDSLayout, series: bids.layout.BIDSFile, desc: str) -> Path:
+    entities = series.get_entities(metadata=False)
+    entities["datatype"] = "figures"
+    entities["desc"] = desc
+    return bids.layout.layout.build_path(
+        entities,
+        path_patterns=bids_config['default_path_patterns']
+    )
