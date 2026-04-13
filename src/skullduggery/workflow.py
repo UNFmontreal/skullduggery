@@ -60,6 +60,14 @@ def deface_workflow(layout, args):
 
         # get age to get the right template if cohorts
         age = get_age_and_unit(layout, subject, session)
+        if age is None and args.default_age is not None:
+            logging.warning(
+                "using fallback age %s:%s for sub-%s",
+                args.default_age[0],
+                args.default_age[1],
+                subject,
+            )
+            age = args.default_age
 
         # get template for that reference image
         tpl_path, reg_to_default_tpl = get_template(
