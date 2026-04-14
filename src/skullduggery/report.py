@@ -12,13 +12,6 @@ from nireports.reportlets.mosaic import plot_segs
 
 from importlib import resources
 
-"""
-bids_config_path = nr_data.load("nipreps.json")
-bids_config = json.loads(bids_config_path.read_bytes())
-# append a generic pattern, for suffix not covered by current nireports config (eg. MEGRE)
-bids_config["default_path_patterns"].append("sub-{subject}/{datatype<figures>}/sub-{subject}[_ses-{session}][_acq-{acquisition}][_ce-{ceagent}][_rec-{reconstruction}][_run-{run}][_space-{space}][_cohort-{cohort}][_desc-{desc}]_{suffix}{extension<.html|.svg>|.svg}")
-"""
-
 default_path_patterns = None
 
 
@@ -89,4 +82,4 @@ def generate_report(output_dir, **entities):
         **entities,
     )
     robj.generate_report()
-    return robj  # .out_filename.absolute()
+    return robj.out_filename.absolute()

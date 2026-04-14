@@ -177,7 +177,8 @@ def deface_workflow(layout, args):
             )
             new_files.append(mask_fig_path)
 
-        generate_report(report_dir, subject=subject, session=session)
+        report_path = generate_report(report_dir, subject=subject, session=session)
+        new_files.append(report_path)
 
     if args.datalad and len(modified_files):
         logging.info("saving files changes in datalad")
