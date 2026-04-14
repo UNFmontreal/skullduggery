@@ -13,7 +13,6 @@ from .workflow import deface_workflow
 from .template import DEFAULT_TEMPLATE
 
 DEBUG = bool(os.environ.get("DEBUG", False))
-PYBIDS_CACHE_PATH = ".pybids_cache"
 
 coloredlogs.install()
 if DEBUG:
@@ -25,11 +24,11 @@ if DEBUG:
     )
 else:
     logging.basicConfig(
-        format="%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s", level=logging.INFO
+        format="%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s",
+        level=logging.INFO,
+        force=True,
     )
     logging.root.setLevel(logging.INFO)
-
-lgr = logging.getLogger(__name__)
 
 
 def _default_age(value: str) -> tuple[float, str]:
@@ -121,7 +120,7 @@ def parse_args():
         action="store",
         type=_bids_filter,
         required=False,
-        default= [{"datatype": "anat"}],
+        default=[{"datatype": "anat"}],
         help="path to or inline json with pybids filters to select all images to deface",
     )
     parser.add_argument("--deface-sensitive", action="store_true", help="select series to deface using git-annex metadata string")
@@ -137,7 +136,6 @@ def parse_args():
 
 def main() -> None:
     args = parse_args()
-    pybids_cache_path = os.path.join(args.bids_path, PYBIDS_CACHE_PATH)
 
     layout = bids.BIDSLayout(os.path.abspath(args.bids_path))
     success = False

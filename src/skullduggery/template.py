@@ -4,23 +4,24 @@ from pathlib import Path
 
 DEFAULT_TEMPLATE = "MNI152NLin6Asym"
 
+
 def get_template(
     template_name: str = DEFAULT_TEMPLATE,
-    bids_filters: Dict[str, Any] = {'suffix':'T1w'},
+    bids_filters: Dict[str, Any] = {"suffix": "T1w"},
     age: Tuple[float, str] | None = None,
-    resolution=1
+    resolution=1,
 ) -> Tuple[Path, Path]:
     # get appropriate contrast image from template name
     # and bids filters for the reference image
     suffix = bids_filters["suffix"]
-    cohort =  None
+    cohort = None
     tpl_metas = tplflow.get_metadata(template_name)
-    if tpl_metas.get('cohort'):
+    if tpl_metas.get("cohort"):
         if not age:
-            raise RuntimeError('age is required for templates with cohorts')
-        for cohort, cohort_metas in tpl_metas.get('cohort').items():
-            if age[1]==cohort_metas['units']:
-                if cohort_metas['age'][0] < age[0] <  cohort_metas['age'][0]:
+            raise RuntimeError("age is required for templates with cohorts")
+        for cohort, cohort_metas in tpl_metas.get("cohort").items():
+            if age[1] == cohort_metas["units"]:
+                if cohort_metas["age"][0] < age[0] < cohort_metas["age"][0]:
                     break
         else:
             raise RuntimeError(f"template {template_name} is not appropriate for age {age}")
@@ -32,12 +33,16 @@ def get_template(
         cohort=cohort,
     )
 
-    reg_to_default = tplflow.get(
-        template_name,
-        suffix="xfm",
-        cohort=cohort,
-        **{'from': DEFAULT_TEMPLATE} #from is a python reserved keyword
-    ) if template_name != DEFAULT_TEMPLATE else None
+    reg_to_default = (
+        tplflow.get(
+            template_name,
+            suffix="xfm",
+            cohort=cohort,
+            **{"from": DEFAULT_TEMPLATE},  # from is a python reserved keyword
+        )
+        if template_name != DEFAULT_TEMPLATE
+        else None
+    )
 
     # TODO: write fallback to get approximately matching contrasts
     # or suggest alternative templates with existing contrast
