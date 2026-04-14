@@ -28,7 +28,7 @@ def test_generate_deface_ear_mask():
 
     # Assert mask is zeroed out at specific edge bounds that are always 0
     assert mask_data[0, 128, 128] == 0  # X=0 is 0
-    assert mask_data[-1, 128, 128] == 0 # X=-1 is 0
+    assert mask_data[-1, 128, 128] == 0  # X=-1 is 0
     assert mask_data[128, 0, 128] == 0  # Y=0 is 0
-    assert mask_data[128, -1, 128] == 0 # Y=-1 is 0
-    assert mask_data[128, 128, -1] == 0 # Z=-1 is 0
+    assert mask_data[128, -1, 128] == 0  # Y=-1 is 0
+    assert mask_data[128, 128, -1] == 0  # Z=-1 is 0

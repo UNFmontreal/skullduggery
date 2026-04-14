@@ -24,10 +24,8 @@ def test_get_age_and_unit_no_session(mocker):
 
     # Setup mock dataframe
     import pandas as pd
-    df = pd.DataFrame({
-        "participant_id": ["sub-01", "sub-02"],
-        "age": [25.5, 30.0]
-    })
+
+    df = pd.DataFrame({"participant_id": ["sub-01", "sub-02"], "age": [25.5, 30.0]})
 
     mock_participants_tsv.get_df.return_value = df
     mock_participants_tsv.get_metadata.return_value = {"age": {"Units": "years"}}
@@ -45,11 +43,8 @@ def test_get_age_and_unit_with_session(mocker):
     mock_participants_tsv = MagicMock()
 
     import pandas as pd
-    df = pd.DataFrame({
-        "participant_id": ["sub-01", "sub-01"],
-        "session_id": ["ses-1", "ses-2"],
-        "age": [12.0, 18.0]
-    })
+
+    df = pd.DataFrame({"participant_id": ["sub-01", "sub-01"], "session_id": ["ses-1", "ses-2"], "age": [12.0, 18.0]})
 
     mock_participants_tsv.get_df.return_value = df
     mock_participants_tsv.get_metadata.return_value = {"age": {"Units": "months"}}

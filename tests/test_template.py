@@ -26,12 +26,7 @@ def test_get_template_no_cohort(mocker):
     assert reg == [mock_reg]
 
     # Verify exact calls to tplflow.get
-    mock_tplflow.get.assert_any_call(
-        "MNI152NLin2009cAsym",
-        suffix="T1w",
-        resolution=1,
-        cohort=None
-    )
+    mock_tplflow.get.assert_any_call("MNI152NLin2009cAsym", suffix="T1w", resolution=1, cohort=None)
 
 
 def test_get_template_with_cohort(mocker):
@@ -39,10 +34,7 @@ def test_get_template_with_cohort(mocker):
 
     # Mock get_metadata for pediatric template
     mock_tplflow.get_metadata.return_value = {
-        "cohort": {
-            "1": {"units": "months", "age": [0.0, 2.0]},
-            "2": {"units": "months", "age": [2.0, 8.0]}
-        }
+        "cohort": {"1": {"units": "months", "age": [0.0, 2.0]}, "2": {"units": "months", "age": [2.0, 8.0]}}
     }
 
     mock_tpl = Path("/path/to/infant/template.nii.gz")
@@ -58,11 +50,7 @@ def test_get_template_with_cohort(mocker):
 
 def test_get_template_missing_age_for_cohort(mocker):
     mock_tplflow = mocker.patch("skullduggery.template.tplflow")
-    mock_tplflow.get_metadata.return_value = {
-        "cohort": {
-            "1": {"units": "months", "age": [0.0, 2.0]}
-        }
-    }
+    mock_tplflow.get_metadata.return_value = {"cohort": {"1": {"units": "months", "age": [0.0, 2.0]}}}
 
     with pytest.raises(RuntimeError, match="age is required for templates with cohorts"):
         get_template(template_name="MNIInfant")
@@ -70,11 +58,7 @@ def test_get_template_missing_age_for_cohort(mocker):
 
 def test_get_template_no_matching_cohort(mocker):
     mock_tplflow = mocker.patch("skullduggery.template.tplflow")
-    mock_tplflow.get_metadata.return_value = {
-        "cohort": {
-            "1": {"units": "years", "age": [10.0, 15.0]}
-        }
-    }
+    mock_tplflow.get_metadata.return_value = {"cohort": {"1": {"units": "years", "age": [10.0, 15.0]}}}
 
     with pytest.raises(RuntimeError, match="is not appropriate for age"):
         get_template(template_name="MNIPediatric", age=(5.0, "years"))
