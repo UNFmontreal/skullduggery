@@ -14,7 +14,7 @@ import nitransforms as nt
 
 from .align import registration_antspy
 from .mask import generate_deface_ear_mask
-from .report import generate_deface_mosaic_report, generate_figure_path
+from .report import generate_deface_mosaic_report, generate_figure_path, generate_report
 from .template import get_template
 from .utils import get_age_and_unit, group_series
 
@@ -22,6 +22,8 @@ from .utils import get_age_and_unit, group_series
 def deface_workflow(layout, args):
 
     logging.basicConfig(level=logging.getLevelName(args.debug_level.upper()))
+
+    report_dir = layout._root / args.report_dir if args.report_dir else layout._root
 
     if args.datalad:
         dlad_ds = datalad.api.Dataset(args.bids_path)
@@ -174,6 +176,8 @@ def deface_workflow(layout, args):
                 mask_fig_path,
             )
             new_files.append(mask_fig_path)
+
+        generate_report(report_dir, subject=subject, session=session)
 
     if args.datalad and len(modified_files):
         logging.info("saving files changes in datalad")

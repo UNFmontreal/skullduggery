@@ -1,0 +1,9 @@
+package: skullduggery
+title: Visual report for participant '{subject}' - skullduggery
+sections:
+
+- name: Anatomical
+  ordering: session,suffix,acquisition,run
+  reportlets:
+  - bids: {datatype: figures, desc: mask}
+    caption: The red overlay shows the warped defacing mask used for this image.

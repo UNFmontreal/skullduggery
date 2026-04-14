@@ -102,9 +102,8 @@ def parse_args():
         help="Save mask for all defaced series, default is only saving mask for reference serie.",
     )
     parser.add_argument(
-        "--debug-images",
-        action="store_true",
-        help="Output debug images in the current directory",
+        "--report-dir",
+        help="directory to write nireports-based HTML reports and defacing mosaics",
     )
     parser.add_argument(
         "--ref-bids-filters",

@@ -10,6 +10,8 @@ from nibabel.spatialimages import SpatialImage
 from nireports.interfaces.reporting.base import compose_view
 from nireports.reportlets.mosaic import plot_segs
 
+from importlib import resources
+
 """
 bids_config_path = nr_data.load("nipreps.json")
 bids_config = json.loads(bids_config_path.read_bytes())
@@ -77,3 +79,14 @@ def generate_figure_path(layout: bids.BIDSLayout, series: bids.layout.BIDSFile, 
     if not path:
         raise RuntimeError(f"Cannot generate a figure path for {entities}")
     return layout._root / path
+
+
+def generate_report(output_dir, **entities):
+    robj = Report(
+        output_dir,
+        "TODO: make UUID",
+        bootstrap_file=resources.files("skullduggery.data").joinpath("bootstrap-defacing.yml"),
+        **entities,
+    )
+    robj.generate_report()
+    return robj  # .out_filename.absolute()

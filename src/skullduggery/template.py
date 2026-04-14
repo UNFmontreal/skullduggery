@@ -21,7 +21,7 @@ def get_template(
             raise RuntimeError("age is required for templates with cohorts")
         for cohort, cohort_metas in tpl_metas.get("cohort").items():
             if age[1] == cohort_metas["units"]:
-                if cohort_metas["age"][0] < age[0] < cohort_metas["age"][0]:
+                if cohort_metas["age"][0] <= age[0] < cohort_metas["age"][1]:
                     break
         else:
             raise RuntimeError(f"template {template_name} is not appropriate for age {age}")
