@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
+import os, sys
 
 import bids
 import coloredlogs
@@ -123,7 +123,9 @@ def parse_args():
         default=[{"datatype": "anat"}],
         help="path to or inline json with pybids filters to select all images to deface",
     )
-    parser.add_argument("--deface-sensitive", action="store_true", help="select series to deface using git-annex metadata string")
+    parser.add_argument(
+        "--deface-sensitive", action="store_true", help="select series to deface using git-annex metadata string"
+    )
     parser.add_argument(
         "--debug",
         dest="debug_level",
@@ -142,7 +144,7 @@ def main() -> None:
 
     success = deface_workflow(layout, args)
 
-    exit(0 if success else 1)
+    sys.exit(0 if success else 1)
 
 
 if __name__ == "__main__":

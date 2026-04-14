@@ -16,7 +16,7 @@ from .align import registration_antspy
 from .mask import generate_deface_ear_mask
 from .report import generate_deface_mosaic_report, generate_figure_path
 from .template import get_template
-from .utils import get_age_and_unit
+from .utils import get_age_and_unit, group_series
 
 
 def deface_workflow(layout, args):
@@ -103,36 +103,44 @@ def deface_workflow(layout, args):
                 )
             )
 
-        for serie in series_to_deface:
+        series_to_deface_groups = group_series(series_to_deface)
+
+        for group_entities, grouped_series in series_to_deface_groups:
+            grouped_series = list(grouped_series)
+
+            serie_groupref = [
+                s
+                for s in grouped_series
+                if s.entities.get("part") in ["mag", None] and s.entities.get("echo") in ["1", None]
+            ][0]
             if args.deface_sensitive:
-                if next(annex_repo.get_metadata(serie.path))[1].get("distribution-restrictions") is None:
+                if next(annex_repo.get_metadata(serie_groupref.path))[1].get("distribution-restrictions") is None:
                     logging.info("skip %s as there are no distribution restrictions metadata set.", serie.relpath)
                     continue
-            logging.info("defacing %s", serie.relpath)
+            logging.info("defacing %s", serie_groupref.relpath)
 
             if args.datalad:
-                dlad_ds.get(serie.path)
+                dlad_ds.get([gs.path for gs in grouped_series])
                 # unlock before making any change to avoid unwanted save
-                annex_repo.unlock([serie.path for serie in series_to_deface])
-            serie_nb = serie.get_image()
+                annex_repo.unlock([gs.path for gs in grouped_series])
+            serie_groupref_nb = serie_groupref.get_image()
 
             serie2ref_reg = registration_antspy(
-                ref_image.path, serie.path, transform="Rigid", initial_transform="Identity"
+                ref_image.path, serie_groupref.path, transform="Rigid", initial_transform="Identity"
             )
             serie2ref_tx = nt.linear.load(serie2ref_reg["fwdtransforms"][0])
 
             series2tpl = nt.manip.TransformChain(tpl_to_default_tpl + [ref_to_tpl_tx, serie2ref_tx])
             tpl2series = nt.linear.Affine(np.linalg.inv(series2tpl.asaffine().matrix))
             warped_mask = nt.resampling.apply(
-                tpl2series, default_tpl_defacemask, reference=serie_nb, order=0, output_dtype=np.uint8
+                tpl2series, default_tpl_defacemask, reference=serie_groupref_nb, order=0, output_dtype=np.uint8
             )
 
-
-            if args.save_all_masks or serie == ref_image:
+            if args.save_all_masks or serie_groupref == ref_image:
                 warped_mask_path = Path(
                     serie.path.replace(
-                        "_%s" % serie.entities["suffix"],
-                        f"_space-{serie.entities['suffix']}_desc-deface_mask",
+                        "_%s" % serie_groupref.entities["suffix"],
+                        f"_space-{serie_groupref.entities['suffix']}_desc-deface_mask",
                     )
                 )
                 if os.path.exists(warped_mask_path):
@@ -141,26 +149,31 @@ def deface_workflow(layout, args):
                     warped_mask.to_filename(warped_mask_path)
                     new_files.append(warped_mask_path)
 
-            masked_serie = nb.Nifti1Image(
-                np.asanyarray(serie_nb.dataobj) * np.asanyarray(warped_mask.dataobj),
-                serie_nb.affine,
-                serie_nb.header,
-            )
-            masked_serie.to_filename(serie.path)
-            modified_files.append(serie.path)
+            for serie in grouped_series:
+                serie_nb = serie.get_image()
+                masked_serie = nb.Nifti1Image(
+                    np.asanyarray(serie_nb.dataobj) * np.asanyarray(warped_mask.dataobj),
+                    serie_nb.affine,
+                    serie_nb.header,
+                )
+                if serie == serie_groupref:
+                    # keep for report later
+                    masked_serie_report = masked_serie
+                masked_serie.to_filename(serie.path)
+                modified_files.append(serie.path)
 
-            logging.info("generating deface mosaic report: %s", serie.relpath)
             mask_fig_path = generate_figure_path(
                 layout,
-                serie,
+                serie_groupref,
                 desc="mask",
             )
-            report_svg_path = generate_deface_mosaic_report(
-                masked_serie,
+            logging.info("generating deface mosaic report: %s", mask_fig_path)
+            generate_deface_mosaic_report(
+                masked_serie_report,
                 warped_mask,
                 mask_fig_path,
             )
-            new_files.append(report_svg_path)
+            new_files.append(mask_fig_path)
 
     if args.datalad and len(modified_files):
         logging.info("saving files changes in datalad")
