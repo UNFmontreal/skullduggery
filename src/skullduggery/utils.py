@@ -4,8 +4,9 @@ This module provides utilities for extracting participant age information from
 BIDS datasets, normalizing age units, and grouping imaging series by entities.
 """
 from __future__ import annotations
-import logging
+
 import itertools
+import logging
 from typing import Literal, cast
 
 
@@ -53,7 +54,7 @@ def get_age_and_unit(layout, subject, session=None):
     return participant_age, age_unit
 
 
-### from nibabies
+# from nibabies
 
 SUPPORTED_AGE_UNITS = (
     "weeks",

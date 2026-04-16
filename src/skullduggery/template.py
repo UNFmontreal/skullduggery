@@ -6,14 +6,17 @@ including support for age-specific cohorts and template transformations.
 import templateflow.api as tplflow
 from typing import Dict, Any, Tuple
 from pathlib import Path
+from typing import Any
+
+import templateflow.api as tplflow
 
 DEFAULT_TEMPLATE = "MNI152NLin6Asym"
 
 
 def get_template(
     template_name: str = DEFAULT_TEMPLATE,
-    bids_filters: Dict[str, Any] = {"suffix": "T1w"},
-    age: Tuple[float, str] | None = None,
+    bids_filters: dict[str, Any] = {"suffix": "T1w"},
+    age: tuple[float, str] | None = None,
     resolution=1,
 ) -> Tuple[Path, Path]:
     """Retrieve template and transformation files from TemplateFlow.
@@ -47,7 +50,7 @@ def get_template(
     if tpl_metas.get("cohort"):
         if not age:
             raise RuntimeError("age is required for templates with cohorts")
-        for cohort, cohort_metas in tpl_metas.get("cohort").items():
+        for _cohort, cohort_metas in tpl_metas.get("cohort").items():
             if age[1] == cohort_metas["units"]:
                 if cohort_metas["age"][0] <= age[0] < cohort_metas["age"][1]:
                     break

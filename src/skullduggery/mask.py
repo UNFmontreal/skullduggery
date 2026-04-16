@@ -5,7 +5,6 @@ while preserving brain tissue, using template-based hard-coded anatomical marker
 """
 from __future__ import annotations
 
-
 import nibabel as nb
 import numpy as np
 

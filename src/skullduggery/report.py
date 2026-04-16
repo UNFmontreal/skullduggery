@@ -17,6 +17,13 @@ from nireports.interfaces.reporting.base import compose_view
 from nireports.reportlets.mosaic import plot_segs
 
 from importlib import resources
+from pathlib import Path
+
+import bids
+from nibabel.spatialimages import SpatialImage
+from nireports.assembler.report import Report
+from nireports.interfaces.reporting.base import compose_view
+from nireports.reportlets.mosaic import plot_segs
 
 default_path_patterns = None
 

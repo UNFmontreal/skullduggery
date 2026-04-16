@@ -7,15 +7,16 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os, sys
+import os
+import sys
 
 import bids
 import coloredlogs
 
 from .bids import _bids_filter
+from .template import DEFAULT_TEMPLATE
 from .utils import SUPPORTED_AGE_UNITS
 from .workflow import deface_workflow
-from .template import DEFAULT_TEMPLATE
 
 DEBUG = bool(os.environ.get("DEBUG", False))
 

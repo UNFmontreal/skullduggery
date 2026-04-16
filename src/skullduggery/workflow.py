@@ -14,8 +14,8 @@ from shutil import copyfile
 import bids
 import datalad.api
 import nibabel as nb
-import numpy as np
 import nitransforms as nt
+import numpy as np
 
 from .align import registration_antspy
 from .mask import generate_deface_ear_mask
@@ -64,7 +64,7 @@ def deface_workflow(layout, args):
 
     logging.basicConfig(level=logging.getLevelName(args.debug_level.upper()))
 
-    report_dir = layout._root / args.report_dir if args.report_dir else layout._root
+    report_dir = layout._root / (args.report_dir or Path(".skullduggery"))
 
     if args.datalad:
         dlad_ds = datalad.api.Dataset(args.bids_path)
@@ -148,7 +148,7 @@ def deface_workflow(layout, args):
 
         series_to_deface_groups = group_series(series_to_deface)
 
-        for group_entities, grouped_series in series_to_deface_groups:
+        for _group_entities, grouped_series in series_to_deface_groups:
             grouped_series = list(grouped_series)
 
             serie_groupref = [
@@ -158,7 +158,9 @@ def deface_workflow(layout, args):
             ][0]
             if args.deface_sensitive:
                 if next(annex_repo.get_metadata(serie_groupref.path))[1].get("distribution-restrictions") is None:
-                    logging.info("skip %s as there are no distribution restrictions metadata set.", serie.relpath)
+                    logging.info(
+                        "skip %s as there are no distribution restrictions metadata set.", serie_groupref.relpath
+                    )
                     continue
             logging.info("defacing %s", serie_groupref.relpath)
 
@@ -181,7 +183,7 @@ def deface_workflow(layout, args):
 
             if args.save_all_masks or serie_groupref == ref_image:
                 warped_mask_path = Path(
-                    serie.path.replace(
+                    serie_groupref.path.replace(
                         "_%s" % serie_groupref.entities["suffix"],
                         f"_space-{serie_groupref.entities['suffix']}_desc-deface_mask",
                     )
@@ -207,6 +209,7 @@ def deface_workflow(layout, args):
 
             mask_fig_path = generate_figure_path(
                 layout,
+                report_dir,
                 serie_groupref,
                 desc="mask",
             )

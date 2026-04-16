@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from unittest.mock import MagicMock
 
 from skullduggery.utils import _get_age_units, get_age_and_unit
