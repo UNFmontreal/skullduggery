@@ -1,3 +1,8 @@
+"""Main defacing workflow for neuroimaging datasets.
+
+This module orchestrates the complete defacing pipeline, including template
+selection, registration, mask warping, and report generation for BIDS datasets.
+"""
 from __future__ import annotations
 
 import logging
@@ -20,6 +25,42 @@ from .utils import get_age_and_unit, group_series
 
 
 def deface_workflow(layout, args):
+    """Execute the complete defacing workflow on a BIDS dataset.
+
+    Orchestrates registration-based defacing for all specified anatomical images:
+    1. Loads or generates reference images and defacing masks
+    2. Registers each participant's reference image to template
+    3. Warps template-space defacing mask to native space
+    4. Applies mask to all relevant anatomical series
+    5. Generates QA reports
+    6. Optionally commits changes to DataLad
+
+    Args:
+        layout: PyBIDS BIDSLayout object for the dataset.
+        args: Parsed command-line arguments containing:
+            - participant_label: Participant(s) to deface
+            - session_label: Session(s) to process
+            - template: Template name for registration
+            - default_age: Fallback age for missing data
+            - ref_bids_filters: Filters for selecting reference images
+            - other_bids_filters: Filters for images to deface
+            - save_all_masks: Whether to save all masks or just reference
+            - datalad: Whether to use DataLad for saving
+            - deface_sensitive: Only deface images marked as sensitive
+            - report_dir: Directory for saving reports
+            - debug_level: Logging level
+
+    Returns:
+        bool: True if workflow completed successfully, False otherwise.
+
+    Side effects:
+        - Modifies anatomical images in place (applies defacing mask)
+        - Creates transformation matrix files
+        - Creates mask files (if save_all_masks or for reference)
+        - Generates SVG visualizations
+        - Creates HTML reports
+        - Commits to DataLad if enabled
+    """
 
     logging.basicConfig(level=logging.getLevelName(args.debug_level.upper()))
 

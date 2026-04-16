@@ -1,3 +1,8 @@
+"""Command-line interface and argument parsing for skullduggery.
+
+This module implements the CLI for the skullduggery defacing tool, including
+argument parsing, logging setup, and main entry point.
+"""
 from __future__ import annotations
 
 import argparse
@@ -32,6 +37,21 @@ else:
 
 
 def _default_age(value: str) -> tuple[float, str]:
+    """Parse age argument in format 'value:unit'.
+
+    Converts command-line age argument to tuple of numeric age and unit string.
+    Validates both components and normalizes unit to lowercase.
+
+    Args:
+        value: Age string formatted as 'numeric_value:unit' (e.g., '5:years').
+
+    Returns:
+        tuple: (age_value, age_unit) where age_value is float and age_unit is str.
+
+    Raises:
+        argparse.ArgumentTypeError: If format is invalid, value is not numeric,
+            or unit is not in SUPPORTED_AGE_UNITS.
+    """
     parts = value.split(":", maxsplit=1)
     if len(parts) != 2:
         raise argparse.ArgumentTypeError("default age must be in the form <value>:<unit>")
@@ -51,6 +71,17 @@ def _default_age(value: str) -> tuple[float, str]:
 
 
 def parse_args():
+    """Parse command-line arguments for skullduggery.
+
+    Returns:
+        argparse.Namespace: Parsed command-line arguments including:
+            - bids_path: Path to BIDS dataset
+            - participant_label: Specific participant(s) to deface
+            - session_label: Specific session(s) to process
+            - template: Template space for registration
+            - default_age: Fallback age for participants with missing age data
+            - Various optional processing flags
+    """
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter,
         description="deface anatomical series by performing an affine registration to a template and warping mask to native space",
@@ -136,6 +167,13 @@ def parse_args():
 
 
 def main() -> None:
+    """Main entry point for skullduggery CLI.
+
+    Parses command-line arguments, sets up BIDS layout, and executes
+    the defacing workflow.
+
+    Exits with code 0 on success, 1 on failure.
+    """
     args = parse_args()
 
     layout = bids.BIDSLayout(os.path.abspath(args.bids_path))

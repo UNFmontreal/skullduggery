@@ -1,3 +1,9 @@
+"""Report generation for defacing workflow results.
+
+This module provides functionality to generate HTML reports and visualizations
+of defacing results, including mosaic plots showing the application of defacing
+masks to anatomical images.
+"""
 import json
 import bids
 from pathlib import Path
@@ -16,11 +22,24 @@ default_path_patterns = None
 
 
 class DefaceReport(Report):
+    """BIDS-compatible report generator for defacing results.
+
+    Extends nireports Report class to generate reports structured around
+    registration and defacing results, with automatic section organization.
+    """
     def __init__(self, subject, session=None):
         super().__init__(subject, session)
         self.subject = subject
 
     def _load_config(self, config):
+        """Load and configure report sections.
+
+        Sets up report structure with Registration and Defacing sections
+        that automatically discover corresponding SVG figures.
+
+        Args:
+            config: Configuration object (unused, inherited parameter).
+        """
         self.sections = [
             {
                 "name": "Registration",
@@ -34,9 +53,18 @@ class DefaceReport(Report):
 
 
 def generate_deface_mosaic_report(masked_image: SpatialImage, warped_mask: SpatialImage, output_path: Path):
-    """
-    Generates a mosaic illustrating the results of the deface
-    registration showing the defaced image against the warped mask.
+    """Generate a mosaic visualization of defacing results.
+
+    Creates a mosaic SVG figure showing the defaced image overlaid with
+    the warped defacing mask, useful for quality assurance and reporting.
+
+    Args:
+        masked_image: Defaced anatomical image as nibabel SpatialImage.
+        warped_mask: Defacing mask in native image space as nibabel SpatialImage.
+        output_path: Path where SVG output will be saved.
+
+    Raises:
+        OSError: If parent directory cannot be created or file cannot be written.
     """
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -54,6 +82,22 @@ def generate_deface_mosaic_report(masked_image: SpatialImage, warped_mask: Spati
 
 
 def generate_figure_path(layout: bids.BIDSLayout, series: bids.layout.BIDSFile, desc: str) -> Path:
+    """Generate BIDS-compliant path for a figure file.
+
+    Constructs a BIDS-formatted path for saving figures (SVGs) derived from
+    anatomical series, using the same entity structure as the source image.
+
+    Args:
+        layout: PyBIDS layout of the dataset.
+        series: BIDSFile object of the source anatomical series.
+        desc: Description label for the figure (e.g., "mask", "reg").
+
+    Returns:
+        Path: Complete path for the figure file in BIDS structure.
+
+    Raises:
+        RuntimeError: If figure path cannot be generated from entity structure.
+    """
     entities = series.get_entities(metadata=False)
     entities["datatype"] = "figures"
     entities["desc"] = desc
@@ -75,6 +119,18 @@ def generate_figure_path(layout: bids.BIDSLayout, series: bids.layout.BIDSFile, 
 
 
 def generate_report(output_dir, **entities):
+    """Generate final HTML report for defacing results.
+
+    Creates an HTML report using nireports that combines registration and
+    defacing visualizations for specified BIDS entities.
+
+    Args:
+        output_dir: Directory where report will be generated.
+        **entities: BIDS entities for report customization (e.g., subject, session).
+
+    Returns:
+        Path: Absolute path to generated HTML report file.
+    """
     robj = Report(
         output_dir,
         "TODO: make UUID",

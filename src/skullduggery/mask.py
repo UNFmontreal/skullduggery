@@ -1,3 +1,8 @@
+"""Defacing mask generation from template images.
+
+This module generates defacing masks that remove identifiable facial features
+while preserving brain tissue, using template-based hard-coded anatomical markers.
+"""
 from __future__ import annotations
 
 
@@ -5,10 +10,24 @@ import nibabel as nb
 import numpy as np
 
 
-# generates the mask on the fly from the template image, using hard-coded markers
-# the mask image is larger that the template to include the full face and allow processing
-# of images with larger FoV (eg. cspine acquisitions)
 def generate_deface_ear_mask(mni, resolution=1):
+    """Generate a defacing mask to remove face and ears from neuroimages.
+
+    Creates a defacing mask on the fly from a template image using hard-coded
+    anatomical markers. The mask is extended beyond the template to include
+    the full face and accommodate images with larger fields of view (e.g.,
+    cervical spine acquisitions).
+
+    Args:
+        mni: nibabel image object of the template (typically MNI space).
+        resolution: Resolution scaling factor. Defaults to 1 (full resolution).
+            Use >1 for lower resolution processing.
+
+    Returns:
+        nibabel.Nifti1Image: Binary defacing mask with:
+            - 0 where tissue should be removed (face, ears, edges)
+            - 1 where tissue should be preserved (brain region)
+    """
 
     deface_ear_mask = np.ones(np.asarray(mni.shape) * (1, 1, 2), dtype=np.uint8)
     affine_ext = mni.affine.copy()

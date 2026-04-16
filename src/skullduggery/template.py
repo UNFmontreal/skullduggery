@@ -1,3 +1,8 @@
+"""Template selection and retrieval utilities.
+
+This module provides functions for retrieving templates from TemplateFlow,
+including support for age-specific cohorts and template transformations.
+"""
 import templateflow.api as tplflow
 from typing import Dict, Any, Tuple
 from pathlib import Path
@@ -11,6 +16,29 @@ def get_template(
     age: Tuple[float, str] | None = None,
     resolution=1,
 ) -> Tuple[Path, Path]:
+    """Retrieve template and transformation files from TemplateFlow.
+
+    Fetches the specified template and optional transform to default template,
+    with automatic cohort selection for age-stratified templates.
+
+    Args:
+        template_name: TemplateFlow template name. Defaults to MNI152NLin6Asym.
+        bids_filters: BIDS entity filters for template selection.
+            Defaults to {"suffix": "T1w"}.
+        age: Tuple of (age_value, age_unit) for cohort selection.
+            Required if template has cohorts. Units must match template definition.
+        resolution: Template resolution in mm. Defaults to 1.
+
+    Returns:
+        tuple: (template_path, transform_to_default_path) where:
+            - template_path: Path to selected template image
+            - transform_to_default_path: Path to transform to DEFAULT_TEMPLATE,
+              or None if template is already the default
+
+    Raises:
+        RuntimeError: If age is required but not provided, template/suffix
+            not found, or age does not match any cohort.
+    """
     # get appropriate contrast image from template name
     # and bids filters for the reference image
     suffix = bids_filters["suffix"]
