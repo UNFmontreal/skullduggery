@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any
 
 import templateflow.api as tplflow
 
@@ -22,7 +22,7 @@ def get_template(
     if tpl_metas.get("cohort"):
         if not age:
             raise RuntimeError("age is required for templates with cohorts")
-        for cohort, cohort_metas in tpl_metas.get("cohort").items():
+        for _cohort, cohort_metas in tpl_metas.get("cohort").items():
             if age[1] == cohort_metas["units"]:
                 if cohort_metas["age"][0] <= age[0] < cohort_metas["age"][1]:
                     break

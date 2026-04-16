@@ -30,7 +30,7 @@ def get_age_and_unit(layout, subject, session=None):
     return participant_age, age_unit
 
 
-### from nibabies
+# from nibabies
 
 SUPPORTED_AGE_UNITS = (
     "weeks",

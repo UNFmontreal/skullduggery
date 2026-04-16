@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import json
 from importlib import resources
 from pathlib import Path
 
 import bids
-import nireports.assembler.report
 from nibabel.spatialimages import SpatialImage
-from nireports.assembler import data as nr_data
 from nireports.assembler.report import Report
 from nireports.interfaces.reporting.base import compose_view
 from nireports.reportlets.mosaic import plot_segs
