@@ -44,3 +44,6 @@ def _bids_filter(json_str):
     Raises:
         json.JSONDecodeError: If JSON parsing fails.
     """
+    if os.path.exists(os.path.abspath(json_str)):
+        json_str = Path(json_str).read_text()
+    return json.loads(json_str, object_hook=_filter_pybids_any)

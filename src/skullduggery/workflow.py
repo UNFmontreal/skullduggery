@@ -13,7 +13,6 @@ from pathlib import Path
 from shutil import copyfile
 
 import bids
-import datalad.api
 import nibabel as nb
 import nitransforms as nt
 import numpy as np
@@ -24,6 +23,11 @@ from .report import (generate_deface_mosaic_report, generate_figure_path,
                      generate_report)
 from .template import get_template
 from .utils import get_age_and_unit, group_series
+
+try:
+    import datalad.api
+except ImportError:
+    datalad = None
 
 
 def deface_workflow(layout, args):
@@ -69,6 +73,10 @@ def deface_workflow(layout, args):
     report_dir = layout._root / (args.report_dir or Path(".skullduggery"))
 
     if args.datalad:
+        if datalad is None:
+            raise ImportError(
+                "datalad is required for --datalad flag. " "Install it with: pip install skullduggery[datalad]"
+            )
         dlad_ds = datalad.api.Dataset(args.bids_path)
         annex_repo = dlad_ds.repo
 

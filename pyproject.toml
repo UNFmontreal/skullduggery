@@ -26,17 +26,20 @@ dependencies = [
     "templateflow",
     "coloredlogs",
     "pybids",
-    "datalad",
     "nibabel",
+    "numpy",
     "antspyx",
-    "nireports",
     "nitransforms",
+    "nireports",
 ]
 
 [project.scripts]
 skullduggery = "skullduggery.run:main"
 
 [project.optional-dependencies]
+datalad = [
+    "datalad",
+]
 spark = [
     "pyspark>=3.0.0"
 ]
