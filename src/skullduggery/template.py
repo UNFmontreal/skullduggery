@@ -1,16 +1,19 @@
-import templateflow.api as tplflow
-from typing import Dict, Any, Tuple
+from __future__ import annotations
+
 from pathlib import Path
+from typing import Any, Dict, Tuple
+
+import templateflow.api as tplflow
 
 DEFAULT_TEMPLATE = "MNI152NLin6Asym"
 
 
 def get_template(
     template_name: str = DEFAULT_TEMPLATE,
-    bids_filters: Dict[str, Any] = {"suffix": "T1w"},
-    age: Tuple[float, str] | None = None,
+    bids_filters: dict[str, Any] = {"suffix": "T1w"},
+    age: tuple[float, str] | None = None,
     resolution=1,
-) -> Tuple[Path, Path]:
+) -> tuple[Path, Path]:
     # get appropriate contrast image from template name
     # and bids filters for the reference image
     suffix = bids_filters["suffix"]

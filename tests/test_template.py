@@ -1,8 +1,11 @@
-import pytest
-from unittest.mock import MagicMock
-from pathlib import Path
+from __future__ import annotations
 
-from skullduggery.template import get_template, DEFAULT_TEMPLATE
+from pathlib import Path
+from unittest.mock import MagicMock
+
+import pytest
+
+from skullduggery.template import DEFAULT_TEMPLATE, get_template
 
 
 def test_get_template_no_cohort(mocker):

@@ -9,12 +9,13 @@ from shutil import copyfile
 import bids
 import datalad.api
 import nibabel as nb
-import numpy as np
 import nitransforms as nt
+import numpy as np
 
 from .align import registration_antspy
 from .mask import generate_deface_ear_mask
-from .report import generate_deface_mosaic_report, generate_figure_path, generate_report
+from .report import (generate_deface_mosaic_report, generate_figure_path,
+                     generate_report)
 from .template import get_template
 from .utils import get_age_and_unit, group_series
 
@@ -23,7 +24,7 @@ def deface_workflow(layout, args):
 
     logging.basicConfig(level=logging.getLevelName(args.debug_level.upper()))
 
-    report_dir = layout._root / args.report_dir if args.report_dir else layout._root
+    report_dir = layout._root / ( args.report_dir or Path('.skullduggery'))
 
     if args.datalad:
         dlad_ds = datalad.api.Dataset(args.bids_path)
@@ -166,6 +167,7 @@ def deface_workflow(layout, args):
 
             mask_fig_path = generate_figure_path(
                 layout,
+                report_dir,
                 serie_groupref,
                 desc="mask",
             )

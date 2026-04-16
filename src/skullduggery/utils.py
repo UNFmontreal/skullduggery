@@ -1,6 +1,7 @@
 from __future__ import annotations
-import logging
+
 import itertools
+import logging
 from typing import Literal, cast
 
 

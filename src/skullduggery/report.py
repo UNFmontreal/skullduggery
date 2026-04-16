@@ -1,16 +1,16 @@
+from __future__ import annotations
+
 import json
-import bids
+from importlib import resources
 from pathlib import Path
-from nireports.assembler.report import Report
+
+import bids
 import nireports.assembler.report
-from nireports.assembler import data as nr_data
-
 from nibabel.spatialimages import SpatialImage
-
+from nireports.assembler import data as nr_data
+from nireports.assembler.report import Report
 from nireports.interfaces.reporting.base import compose_view
 from nireports.reportlets.mosaic import plot_segs
-
-from importlib import resources
 
 default_path_patterns = None
 
@@ -53,7 +53,7 @@ def generate_deface_mosaic_report(masked_image: SpatialImage, warped_mask: Spati
     )
 
 
-def generate_figure_path(layout: bids.BIDSLayout, series: bids.layout.BIDSFile, desc: str) -> Path:
+def generate_figure_path(layout: bids.BIDSLayout, report_dir: Path, series: bids.layout.BIDSFile, desc: str) -> Path:
     entities = series.get_entities(metadata=False)
     entities["datatype"] = "figures"
     entities["desc"] = desc
