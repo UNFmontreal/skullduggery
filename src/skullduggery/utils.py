@@ -3,6 +3,7 @@
 This module provides utilities for extracting participant age information from
 BIDS datasets, normalizing age units, and grouping imaging series by entities.
 """
+
 from __future__ import annotations
 
 import itertools

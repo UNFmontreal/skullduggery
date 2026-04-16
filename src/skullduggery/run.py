@@ -3,6 +3,7 @@
 This module implements the CLI for the skullduggery defacing tool, including
 argument parsing, logging setup, and main entry point.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -131,7 +132,7 @@ def parse_args():
     parser.add_argument(
         "--save-all-masks",
         action="store_true",
-        help="Save mask for all defaced series, default is only saving mask for reference serie.",
+        help="Save mask for all defaced series, default is only saving mask for reference series.",
     )
     parser.add_argument(
         "--report-dir",

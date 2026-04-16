@@ -3,6 +3,7 @@
 This module provides helper functions for working with BIDS (Brain Imaging Data Structure)
 layouts using pyBIDS, including filtering utilities for query wildcards.
 """
+
 from __future__ import annotations
 
 import json

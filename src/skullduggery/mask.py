@@ -3,6 +3,7 @@
 This module generates defacing masks that remove identifiable facial features
 while preserving brain tissue, using template-based hard-coded anatomical markers.
 """
+
 from __future__ import annotations
 
 import nibabel as nb

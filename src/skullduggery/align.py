@@ -3,6 +3,7 @@
 This module provides functionality for registering moving images to reference
 images using ANTs (Advanced Normalization Tools) through the antspy Python wrapper.
 """
+
 from __future__ import annotations
 
 import ants

@@ -3,10 +3,11 @@
 This module provides functions for retrieving templates from TemplateFlow,
 including support for age-specific cohorts and template transformations.
 """
-import templateflow.api as tplflow
-from typing import Dict, Any, Tuple
+
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, Tuple
 
 import templateflow.api as tplflow
 
@@ -18,7 +19,7 @@ def get_template(
     bids_filters: dict[str, Any] = {"suffix": "T1w"},
     age: tuple[float, str] | None = None,
     resolution=1,
-) -> Tuple[Path, Path]:
+) -> tuple[Path, Path]:
     """Retrieve template and transformation files from TemplateFlow.
 
     Fetches the specified template and optional transform to default template,

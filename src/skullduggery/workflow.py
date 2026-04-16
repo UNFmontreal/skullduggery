@@ -3,6 +3,7 @@
 This module orchestrates the complete defacing pipeline, including template
 selection, registration, mask warping, and report generation for BIDS datasets.
 """
+
 from __future__ import annotations
 
 import logging
@@ -19,7 +20,8 @@ import numpy as np
 
 from .align import registration_antspy
 from .mask import generate_deface_ear_mask
-from .report import generate_deface_mosaic_report, generate_figure_path, generate_report
+from .report import (generate_deface_mosaic_report, generate_figure_path,
+                     generate_report)
 from .template import get_template
 from .utils import get_age_and_unit, group_series
 

@@ -4,23 +4,17 @@ This module provides functionality to generate HTML reports and visualizations
 of defacing results, including mosaic plots showing the application of defacing
 masks to anatomical images.
 """
+
+from __future__ import annotations
+
 import json
-import bids
-from pathlib import Path
-from nireports.assembler.report import Report
-import nireports.assembler.report
-from nireports.assembler import data as nr_data
-
-from nibabel.spatialimages import SpatialImage
-
-from nireports.interfaces.reporting.base import compose_view
-from nireports.reportlets.mosaic import plot_segs
-
 from importlib import resources
 from pathlib import Path
 
 import bids
+import nireports.assembler.report
 from nibabel.spatialimages import SpatialImage
+from nireports.assembler import data as nr_data
 from nireports.assembler.report import Report
 from nireports.interfaces.reporting.base import compose_view
 from nireports.reportlets.mosaic import plot_segs
@@ -34,6 +28,7 @@ class DefaceReport(Report):
     Extends nireports Report class to generate reports structured around
     registration and defacing results, with automatic section organization.
     """
+
     def __init__(self, subject, session=None):
         super().__init__(subject, session)
         self.subject = subject
