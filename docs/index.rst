@@ -1,16 +1,30 @@
-.. ai-python docs documentation master file, created by
-   sphinx-quickstart on Thu May  5 14:06:45 2022.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+Skullduggery Documentation
+==========================
 
-Welcome to ai-python docs's documentation!
-==========================================
+Welcome to Skullduggery's documentation! Skullduggery is a BIDS app for automated defacing of anatomical MRI images.
+
+**Defacing** removes identifiable facial features from anatomical neuroimaging data while preserving brain tissue, protecting participant privacy in neuroimaging studies.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
-   modules
+   :caption: User Guide
 
+   ../README
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Development
+
+   developer
+   vscode
+   pre-commit-config
+   pylint
+
+.. toctree::
+   :maxdepth: 2
+   :caption: API Reference
+
+   modules
 
 Indices and tables
 ==================
