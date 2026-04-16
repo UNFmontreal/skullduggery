@@ -2,16 +2,12 @@
 #   Copyright (c) Microsoft Corporation. All rights reserved.
 #   Licensed under the MIT License. See LICENSE in project root for information.
 #   ---------------------------------------------------------------------------------
-"""
-This is a configuration file for pytest containing customizations and fixtures.
-
-In VSCode, Code Coverage is recorded in config.xml. Delete this file to reset reporting.
-"""
+"""Pytest configuration and shared fixtures."""
 
 from __future__ import annotations
 
-from typing import List
-
+import nibabel as nb
+import numpy as np
 import pytest
 from _pytest.nodes import Item
 
@@ -28,3 +24,12 @@ def pytest_collection_modifyitems(items: list[Item]):
 def unit_test_mocks(monkeypatch: None):
     """Include Mocks here to execute all commands offline and fast."""
     pass
+
+
+@pytest.fixture
+def sample_template_image():
+    """Create a sample template image for testing."""
+    shape = (256, 256, 256)
+    affine = np.eye(4)
+    data = np.ones(shape, dtype=np.uint8)
+    return nb.Nifti1Image(data, affine)
