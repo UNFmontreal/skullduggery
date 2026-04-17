@@ -1,5 +1,5 @@
 #   ---------------------------------------------------------------------------------
-#   Copyright (c) Microsoft Corporation. All rights reserved.
+#   Copyright (c) <Your Name or Organization>. All rights reserved.
 #   Licensed under the MIT License. See LICENSE in project root for information.
 #   ---------------------------------------------------------------------------------
 """Pytest configuration and shared fixtures."""
