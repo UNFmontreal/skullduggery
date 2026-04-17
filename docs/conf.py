@@ -40,6 +40,7 @@ extensions = [
     "sphinx.ext.viewcode",  # Add links to highlighted source code
     "sphinx.ext.napoleon",  # to render Google format docstrings
     "sphinx.ext.githubpages",
+    "myst_parser",  # Support for Markdown files
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -66,3 +67,9 @@ html_static_path = ["_static"]
 # Napoleon settings
 napoleon_include_init_with_doc = True
 napoleon_include_private_with_doc = True
+
+# MyST-Parser settings for Markdown support
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".md": "markdown",
+}

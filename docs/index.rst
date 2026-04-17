@@ -16,24 +16,9 @@ Welcome to Skullduggery! A command-line tool for automated defacing of anatomica
 
 .. toctree::
    :maxdepth: 2
-   :caption: Project Information
-
-   ../README
-
-.. toctree::
-   :maxdepth: 2
    :caption: Development
 
    developer
-   vscode
-   pre-commit-config
-   pylint
-
-.. toctree::
-   :maxdepth: 2
-   :caption: API Reference
-
-   modules
 
 Indices and tables
 ==================

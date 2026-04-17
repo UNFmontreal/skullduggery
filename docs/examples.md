@@ -89,26 +89,6 @@ skullduggery /data/multi_contrast_study \
 
 ---
 
-## Scenario 5: Two-Step Workflow with Multiple Contrasts
-
-Process T1w images first with high quality, then deface other contrasts.
-
-**Step 1: Register using T1w as reference**
-```bash
-skullduggery /data/multicontrast_study \
-  --ref-bids-filters '{"suffix": "T1w", "datatype": "anat"}' \
-  --other-bids-filters '{"suffix": ["T1w", "T2w"], "datatype": "anat"}' \
-  --save-all-masks \
-  --report-dir ./reports_step1
-```
-
-**What happens:**
-- T1w images are registered to template
-- Defacing mask is warped to native space
-- Both T1w and T2w (and any other anat) images are defaced using this mask
-
----
-
 ## Scenario 6: DataLad-Managed Dataset with Git-Annex
 
 Track defaced status in git-annex metadata for reproducibility.
