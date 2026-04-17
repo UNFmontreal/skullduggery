@@ -34,19 +34,36 @@ pip install -e ".[test]"
 
 ## Quick Start
 
-### Basic Usage
+### Deface Your First Dataset
 ```bash
-skullduggery /path/to/bids/dataset
+skullduggery /path/to/bids/dataset --participant-label 01 --report-dir ./reports
 ```
 
-### Advanced Usage
+### Process Multiple Participants
 ```bash
 skullduggery /path/to/bids/dataset \
   --participant-label 01 02 03 \
-  --template MNI152NLin2009cAsym \
   --save-all-masks \
   --report-dir ./defacing_reports
 ```
+
+### For Pediatric Data
+```bash
+skullduggery /path/to/bids/dataset \
+  --template MNIInfant:cohort-06m09m \
+  --report-dir ./pediatric_reports
+```
+
+## Documentation
+
+Complete command-line documentation is available in the [Usage Guide](docs/usage.md) and [Examples](docs/examples.md).
+
+- **Getting Started** - Quick overview and your first command
+- **Usage Guide** - All command-line options explained
+- **Command Reference** - Quick lookup for flags and arguments
+- **Examples** - 12 real-world scenarios with complete commands
+
+View the full documentation at: `docs/` or [online](https://readthedocs.org/)
 
 ## Command-Line Options
 
