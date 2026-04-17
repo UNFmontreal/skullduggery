@@ -1,6 +1,6 @@
 # Skullduggery
 
-![skullduggery tmp artwork](docs/static/skull.png)
+<img src="docs/static/skull.png" alt="skullduggery artwork" width="200" />
 
 **Skullduggery** is a BIDS app for automated defacing of anatomical MRI images. It removes identifiable facial features from anatomical neuroimaging data while preserving brain tissue, protecting participant privacy in neuroimaging studies.
 
