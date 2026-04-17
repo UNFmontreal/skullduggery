@@ -219,9 +219,9 @@ def deface_workflow(layout, args):
 
             mask_fig_path = generate_figure_path(
                 layout,
-                report_dir,
                 serie_groupref,
                 desc="mask",
+                report_dir=report_dir,
             )
             logging.info("generating deface mosaic report: %s", mask_fig_path)
             generate_deface_mosaic_report(
