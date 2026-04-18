@@ -83,7 +83,7 @@ def generate_deface_mosaic_report(masked_image: SpatialImage, warped_mask: Spati
     )
 
 
-def generate_figure_path(layout: bids.BIDSLayout, series: bids.layout.BIDSFile, desc: str) -> Path:
+def generate_figure_path(layout: bids.BIDSLayout, series: bids.layout.BIDSFile, desc: str, report_dir: Path | None = None) -> Path:
     """Generate BIDS-compliant path for a figure file.
 
     Constructs a BIDS-formatted path for saving figures (SVGs) derived from
@@ -93,6 +93,8 @@ def generate_figure_path(layout: bids.BIDSLayout, series: bids.layout.BIDSFile, 
         layout: PyBIDS layout of the dataset.
         series: BIDSFile object of the source anatomical series.
         desc: Description label for the figure (e.g., "mask", "reg").
+        report_dir: Optional directory root for figures. If provided, figures
+            are placed under this directory instead of the dataset root.
 
     Returns:
         Path: Complete path for the figure file in BIDS structure.
@@ -117,7 +119,8 @@ def generate_figure_path(layout: bids.BIDSLayout, series: bids.layout.BIDSFile, 
     path = bids.layout.layout.build_path(entities, path_patterns=default_path_patterns)
     if not path:
         raise RuntimeError(f"Cannot generate a figure path for {entities}")
-    return layout._root / path
+    root = Path(report_dir) if report_dir else layout._root
+    return root / path
 
 
 def generate_report(output_dir, **entities):
