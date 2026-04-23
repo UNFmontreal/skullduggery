@@ -15,7 +15,6 @@ import bids
 import coloredlogs
 
 from .bids import _bids_filter
-from .template import DEFAULT_TEMPLATE
 from .utils import SUPPORTED_AGE_UNITS
 from .workflow import deface_workflow
 
@@ -109,8 +108,10 @@ def parse_args():
 
     parser.add_argument(
         "--template",
-        default=DEFAULT_TEMPLATE,
-        help="a templateflow template (with cohort for pediatrics ones)",
+        default=None,
+        help="a templateflow template (with cohort for pediatrics ones). "
+        "If not specified, automatically selects MNIInfant for participants "
+        "under 2 years of age and MNI152NLin6Asym for others.",
     )
     parser.add_argument(
         "--default-age",
