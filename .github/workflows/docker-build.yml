@@ -24,6 +24,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Extract version from skullduggery package
+        id: version
+        run: |
+          VERSION=$(python -c "import sys; sys.path.insert(0, 'src'); from skullduggery import __version__; print(__version__)")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Log in to the Container registry
         uses: docker/login-action@v4.1.0
         with:
@@ -36,6 +42,10 @@ jobs:
         uses: docker/metadata-action@v6.0.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}},value=${{ steps.version.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.version }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v7.1.0
