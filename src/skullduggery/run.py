@@ -159,6 +159,38 @@ def parse_args():
         "--deface-sensitive", action="store_true", help="select series to deface using git-annex metadata string"
     )
     parser.add_argument(
+        "--jaw-offset",
+        dest="jaw_offset",
+        action="store",
+        type=int,
+        default=0,
+        help="shift jaw marker in voxels (positive = anterior/superior, default: 0)",
+    )
+    parser.add_argument(
+        "--ear-offset",
+        dest="ear_offset",
+        action="store",
+        type=int,
+        default=0,
+        help="shift ear markers in voxels (positive = anterior/superior, default: 0)",
+    )
+    parser.add_argument(
+        "--above-eye-offset",
+        dest="above_eye_offset",
+        action="store",
+        type=int,
+        default=0,
+        help="shift above-eye marker in voxels (positive = superior, default: 0)",
+    )
+    parser.add_argument(
+        "--dilate-mask",
+        dest="dilate_mask",
+        action="store",
+        type=int,
+        default=0,
+        help="expand/contract mask by N voxels (positive = expand, negative = contract, default: 0)",
+    )
+    parser.add_argument(
         "--debug",
         dest="debug_level",
         action="store",

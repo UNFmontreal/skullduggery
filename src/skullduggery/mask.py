@@ -8,9 +8,17 @@ from __future__ import annotations
 
 import nibabel as nb
 import numpy as np
+from scipy import ndimage
 
 
-def generate_deface_ear_mask(mni, resolution=1):
+def generate_deface_ear_mask(
+    mni,
+    resolution=1,
+    jaw_offset=0,
+    ear_offset=0,
+    above_eye_offset=0,
+    dilate=0,
+):
     """Generate a defacing mask to remove face and ears from neuroimages.
 
     Creates a defacing mask on the fly from a template image using hard-coded
@@ -22,6 +30,14 @@ def generate_deface_ear_mask(mni, resolution=1):
         mni: nibabel image object of the template (typically MNI space).
         resolution: Resolution scaling factor. Defaults to 1 (full resolution).
             Use >1 for lower resolution processing.
+        jaw_offset: Shift jaw marker in voxels (positive = anterior/superior).
+            Defaults to 0.
+        ear_offset: Shift ear markers in voxels (positive = anterior/superior).
+            Defaults to 0.
+        above_eye_offset: Shift above-eye marker in voxels (positive = superior).
+            Defaults to 0.
+        dilate: Expand/contract mask by N voxels (positive = expand, negative = contract).
+            Uses binary dilation/erosion. Defaults to 0 (no change).
 
     Returns:
         nibabel.Nifti1Image: Binary defacing mask with:
@@ -33,10 +49,10 @@ def generate_deface_ear_mask(mni, resolution=1):
     affine_ext = mni.affine.copy()
     affine_ext[2, -1] -= mni.shape[-1]
 
-    above_eye_marker = np.asarray([218, 240]) // resolution
-    jaw_marker = np.asarray([130, 182]) // resolution
-    ear_marker = np.asarray([26, 160]) // resolution
-    ear_marker2 = np.asarray([12, 260]) // resolution
+    above_eye_marker = np.asarray([218, 240]) // resolution + np.array([0, above_eye_offset])
+    jaw_marker = np.asarray([130, 182]) // resolution + np.array([jaw_offset, jaw_offset])
+    ear_marker = np.asarray([26, 160]) // resolution + np.array([ear_offset, ear_offset])
+    ear_marker2 = np.asarray([12, 260]) // resolution + np.array([ear_offset, ear_offset])
     ear_y_marker = np.asarray([70, 140]) // resolution
 
     # remove face
@@ -62,4 +78,13 @@ def generate_deface_ear_mask(mni, resolution=1):
     deface_ear_mask[:, -1, :] = 0
     deface_ear_mask[:, :, -1] = 0
     deface_ear_mask[:, :, : mni.shape[2]] = deface_ear_mask[:, :, mni.shape[2], np.newaxis]
+    
+    # Apply dilation/erosion if requested
+    if dilate > 0:
+        # Expand the mask (make defaced region larger)
+        deface_ear_mask = ndimage.binary_dilation(deface_ear_mask, iterations=dilate).astype(np.uint8)
+    elif dilate < 0:
+        # Contract the mask (make defaced region smaller)
+        deface_ear_mask = ndimage.binary_erosion(deface_ear_mask, iterations=-dilate).astype(np.uint8)
+    
     return nb.Nifti1Image(deface_ear_mask, affine_ext)
