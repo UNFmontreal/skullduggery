@@ -94,7 +94,13 @@ def deface_workflow(layout, args):
     # generate deface mask in default template space (MNI)
     default_tpl, _ = get_template()
     default_tpl_nb = nb.load(default_tpl)
-    default_tpl_defacemask = generate_deface_ear_mask(default_tpl_nb)
+    default_tpl_defacemask = generate_deface_ear_mask(
+        default_tpl_nb,
+        jaw_offset=args.jaw_offset,
+        ear_offset=args.ear_offset,
+        above_eye_offset=args.above_eye_offset,
+        dilate=args.dilate_mask,
+    )
     # save it as file for ANTS
     _, tpl_mask_filename = tempfile.mkstemp(suffix=".nii.gz", prefix="tpl_mask")
     default_tpl_defacemask.to_filename(tpl_mask_filename)
