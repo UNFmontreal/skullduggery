@@ -37,6 +37,7 @@ dependencies = [
 [project.scripts]
 skullduggery = "skullduggery.run:main"
 
+[project.optional-dependencies]
 spark = [
     "pyspark>=3.0.0"
 ]
