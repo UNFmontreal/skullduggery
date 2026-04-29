@@ -14,6 +14,8 @@ RUN pip install --no-cache-dir -U pip && \
     pip install --no-cache-dir .
 
 # Global configure of git user and email to avoid errors when running git commands
-RUN git config --global user.name "bids_bot" && git config --global user.email "bids_bot@cpipstudy.ca"
+RUN unset GIT_DIR GIT_WORK_TREE && \
+    git config --global user.name "bids_bot" && \
+    git config --global user.email "bids_bot@cpipstudy.ca"
 
 ENTRYPOINT ["skullduggery"]
