@@ -50,7 +50,7 @@ def registration_antspy(
             ref_ants,
             moving_ants,
         )
-        #return {"fwdtransforms": [initial_transform]}
+        # return {"fwdtransforms": [initial_transform]}
 
     reg = ants.registration(
         ref_ants,

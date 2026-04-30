@@ -148,7 +148,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
                 ref_image.path,
                 transform="TRSAA",
                 ref_mask=str(tpl_mask),
-                verbose = args.debug_level.upper=='DEBUG',
+                verbose=args.debug_level.upper == "DEBUG",
             )
             copyfile(reg["fwdtransforms"][0], matrix_path)
             new_files.append(matrix_path)
@@ -233,7 +233,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
                 logger.debug("generating registered template image")
                 # reg to template
                 registered_ref = nt.resampling.apply(tpl2series, tpl_nb, reference=masked_serie_report)
-                desc="registration"
+                desc = "registration"
             else:
                 # reg to ref series
                 logger.debug("generating registered reference image")
@@ -245,7 +245,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
                     registered_ref.affine,
                     registered_ref.header,
                 )
-                desc="mask"
+                desc = "mask"
 
             mask_fig_path = generate_figure_path(
                 layout,
