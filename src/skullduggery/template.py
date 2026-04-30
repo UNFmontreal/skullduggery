@@ -49,7 +49,7 @@ def convert_age(age_value: float, from_unit: str, to_unit: str) -> float:
     # Convert from weeks to target unit
     if to_unit == "weeks":
         return weeks
-    elif to_unit == "months":
+    if to_unit == "months":
         return weeks * (12 / 52.1429)
     else:  # to_unit == "years"
         return weeks / 52.1429
@@ -178,8 +178,7 @@ def get_template(
     if isinstance(tpl, list):
         if len(tpl) == 0:
             raise RuntimeError(f"failed to get contrast {suffix} from template:{template_name}")
-        else:
-            tpl = tpl[0]
+        tpl = tpl[0]
     if isinstance(reg_to_default, list) and len(reg_to_default) == 0:
         raise RuntimeError(f"failed to get transform to default template from template:{template_name}")
     return tpl, tpl_mask, reg_to_default

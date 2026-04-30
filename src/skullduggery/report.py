@@ -18,41 +18,9 @@ from nibabel.spatialimages import SpatialImage
 from nireports.assembler import data as nr_data
 from nireports.assembler.report import Report
 from nireports.reportlets.utils import compose_view
-from nireports.reportlets.mosaic import plot_segs, plot_mosaic
+from nireports.reportlets.mosaic import plot_segs
 
 default_path_patterns = None
-
-
-class DefaceReport(Report):
-    """BIDS-compatible report generator for defacing results.
-
-    Extends nireports Report class to generate reports structured around
-    registration and defacing results, with automatic section organization.
-    """
-
-    def __init__(self, subject: str, session: str | None = None) -> None:
-        super().__init__(subject, session)
-        self.subject = subject
-
-    def _load_config(self, config: Any) -> None:
-        """Load and configure report sections.
-
-        Sets up report structure with Registration and Defacing sections
-        that automatically discover corresponding SVG figures.
-
-        Args:
-            config: Configuration object (unused, inherited parameter).
-        """
-        self.sections = [
-            {
-                "name": "Registration",
-                "reportlets": [{"pattern": "**/sub-{subject}_ses-{session}_*desc-reg_*.svg"}],
-            },
-            {
-                "name": "Defacing",
-                "reportlets": [{"pattern": "**/sub-{subject}_ses-{session}_*desc-mask_*.svg"}],
-            },
-        ]
 
 
 def generate_deface_mosaic_report(
