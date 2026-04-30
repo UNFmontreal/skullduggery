@@ -175,7 +175,8 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
                 for s in grouped_series
                 if s.entities.get("part") in ["mag", None] and s.entities.get("echo") in ["1", None]
             ]
-            serie_groupref = serie_groupref_candidates[0]
+
+            serie_groupref = ref_image if ref_image in serie_groupref_candidates else serie_groupref_candidates[0]
 
             if args.deface_sensitive:
                 if next(annex_repo.get_metadata(serie_groupref.path))[1].get("distribution-restrictions") is None:
@@ -232,16 +233,24 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
                 logger.debug("generating registered template image")
                 # reg to template
                 registered_ref = nt.resampling.apply(tpl2series, tpl_nb, reference=masked_serie_report)
+                desc="registration"
             else:
                 # reg to ref series
                 logger.debug("generating registered reference image")
                 ref2serie_tx = nt.linear.Affine(np.linalg.inv(serie2ref_tx.matrix))
                 registered_ref = nt.resampling.apply(ref2serie_tx, ref_image_nb, reference=masked_serie_report)
+                # mask the reference with the mask, to avoid leaking face in the report
+                registered_ref = nb.Nifti1Image(
+                    np.asanyarray(registered_ref.dataobj) * np.asanyarray(warped_mask.dataobj),
+                    registered_ref.affine,
+                    registered_ref.header,
+                )
+                desc="mask"
 
             mask_fig_path = generate_figure_path(
                 layout,
                 serie_groupref,
-                desc="mask",
+                desc=desc,
                 report_dir=report_dir,
             )
             logger.info("generating deface mosaic report: %s", mask_fig_path)

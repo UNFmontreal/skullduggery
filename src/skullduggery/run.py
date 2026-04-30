@@ -129,7 +129,7 @@ def parse_args():
         dest="ref_bids_filters",
         action="store",
         type=_bids_filter,
-        default={"suffix": "T1w", "datatype": "anat"},
+        default={"suffix": "T1w", "datatype": "anat", "echo": [None, 1], "part": [None, "mag"]},
         help="path to or inline json with pybids filters to select session reference to register defacemask",
     )
     parser.add_argument(
