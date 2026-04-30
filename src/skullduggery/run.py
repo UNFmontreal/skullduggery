@@ -19,23 +19,9 @@ from .template import DEFAULT_TEMPLATE
 from .utils import SUPPORTED_AGE_UNITS
 from .workflow import deface_workflow
 
-DEBUG = bool(os.environ.get("DEBUG", False))
-
 coloredlogs.install()
-if DEBUG:
-    logging.basicConfig(level=logging.DEBUG)
-    logging.root.setLevel(logging.DEBUG)
-    root_handler = logging.root.handlers[0]
-    root_handler.setFormatter(
-        logging.Formatter("%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s")
-    )
-else:
-    logging.basicConfig(
-        format="%(levelname)-8s [%(filename)s:%(lineno)d] %(message)s",
-        level=logging.INFO,
-        force=True,
-    )
-    logging.root.setLevel(logging.INFO)
+
+logger = logging.getLogger(__name__)
 
 
 def _default_age(value: str) -> tuple[float, str]:
@@ -162,7 +148,7 @@ def parse_args():
         "--debug",
         dest="debug_level",
         action="store",
-        default="info",
+        default=os.environ.get("LOG_LEVEL", "info"),
         help="debug level",
     )
     return parser.parse_args()
@@ -177,6 +163,20 @@ def main() -> None:
     Exits with code 0 on success, 1 on failure.
     """
     args = parse_args()
+
+    # Configure logging based on debug level for skullduggery package only
+    log_level = logging.getLevelName(args.debug_level.upper())
+
+    # Get the root skullduggery package logger
+    package_logger = logging.getLogger("skullduggery")
+    package_logger.setLevel(log_level)
+
+    # Add handler if not already present
+    if not package_logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter("%(levelname)-8s [%(filename)s:%(lineno)d] %(message)s")
+        handler.setFormatter(formatter)
+        package_logger.addHandler(handler)
 
     layout = bids.BIDSLayout(os.path.abspath(args.bids_path))
     success = False

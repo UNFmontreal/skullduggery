@@ -10,7 +10,10 @@ import nibabel as nb
 import numpy as np
 
 
-def generate_deface_ear_mask(mni, resolution=1):
+def generate_deface_ear_mask(
+    mni: nb.spatialimages.SpatialImage,
+    resolution: int = 1,
+) -> nb.Nifti1Image:
     """Generate a defacing mask to remove face and ears from neuroimages.
 
     Creates a defacing mask on the fly from a template image using hard-coded

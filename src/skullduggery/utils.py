@@ -8,10 +8,18 @@ from __future__ import annotations
 
 import itertools
 import logging
-from typing import Literal, cast
+from typing import Iterable, Literal, cast
+
+import bids
+
+logger = logging.getLogger(__name__)
 
 
-def get_age_and_unit(layout, subject, session=None):
+def get_age_and_unit(
+    layout: bids.BIDSLayout,
+    subject: str,
+    session: str | None = None,
+) -> tuple[float, str] | None:
     """Extract participant age and unit from BIDS participants.tsv.
 
     Queries the BIDS layout for a specific participant's age information,
@@ -38,18 +46,18 @@ def get_age_and_unit(layout, subject, session=None):
         participant_mask = participant_mask & (participants_df["session_id"] == f"ses-{session}")
 
     if "age" not in participants_df.columns:
-        logging.warning("participants.tsv does not contain an age column")
+        logger.warning("participants.tsv does not contain an age column")
         return None
 
     matching_rows = participants_df.loc[participant_mask, "age"]
     if matching_rows.empty:
-        logging.warning("no participant age found for sub-%s", subject)
+        logger.warning("no participant age found for sub-%s", subject)
         return None
 
     participant_age = float(matching_rows.iloc[0])
     age_unit = _get_age_units(participants_tsv.get_metadata())
     if not age_unit:
-        logging.warning("participants.tsv metadata does not define supported age units")
+        logger.warning("participants.tsv metadata does not define supported age units")
         return None
 
     return participant_age, age_unit
@@ -93,7 +101,7 @@ def _get_age_units(data: dict) -> AgeUnit | bool:
 GROUPED_ENTITIES = ["part", "echo", "reconstruction"]
 
 
-def group_series(series):
+def group_series(series: Iterable) -> itertools.groupby:
     """Group imaging series by BIDS entities, ignoring multi-part entities.
 
     Groups a collection of imaging series by their BIDS entities, excluding

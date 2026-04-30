@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from importlib import resources
 from pathlib import Path
+from typing import Any
 
 import bids
 import nireports.assembler.report
@@ -29,11 +30,11 @@ class DefaceReport(Report):
     registration and defacing results, with automatic section organization.
     """
 
-    def __init__(self, subject, session=None):
+    def __init__(self, subject: str, session: str | None = None) -> None:
         super().__init__(subject, session)
         self.subject = subject
 
-    def _load_config(self, config):
+    def _load_config(self, config: Any) -> None:
         """Load and configure report sections.
 
         Sets up report structure with Registration and Defacing sections
@@ -58,8 +59,8 @@ def generate_deface_mosaic_report(
     masked_image: SpatialImage,
     warped_mask: SpatialImage,
     output_path: Path,
-    registered_tmpl: Optional[SpatialImage] = None,
-):
+    registered_tmpl: SpatialImage | None = None,
+) -> None:
     """Generate a mosaic visualization of defacing results.
 
     Creates a mosaic SVG figure showing the defaced image overlaid with
@@ -77,25 +78,30 @@ def generate_deface_mosaic_report(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     compose_view(
-        bg_svgs = plot_segs(
-            image_nii=registered_tmpl,
-            seg_niis=[warped_mask],
-            bbox_nii=masked_image,
-            masked=True,
-            title='reference',
-        ) if registered_tmpl else [],
-        fg_svgs = plot_segs(
-            image_nii=masked_image,
-            seg_niis=[warped_mask],
-            bbox_nii=masked_image,
-            masked=True,
-            title='defaced'
+        bg_svgs=(
+            plot_segs(
+                image_nii=registered_tmpl,
+                seg_niis=[warped_mask],
+                bbox_nii=masked_image,
+                masked=True,
+                title="reference",
+            )
+            if registered_tmpl
+            else []
+        ),
+        fg_svgs=plot_segs(
+            image_nii=masked_image, seg_niis=[warped_mask], bbox_nii=masked_image, masked=True, title="defaced"
         ),
         out_file=output_path,
     )
 
 
-def generate_figure_path(layout: bids.BIDSLayout, series: bids.layout.BIDSFile, desc: str, report_dir: Path | None = None) -> Path:
+def generate_figure_path(
+    layout: bids.BIDSLayout,
+    series: bids.layout.BIDSFile,
+    desc: str,
+    report_dir: Path | None = None,
+) -> Path:
     """Generate BIDS-compliant path for a figure file.
 
     Constructs a BIDS-formatted path for saving figures (SVGs) derived from
@@ -135,7 +141,11 @@ def generate_figure_path(layout: bids.BIDSLayout, series: bids.layout.BIDSFile, 
     return root / path
 
 
-def generate_report(output_dir, **entities):
+def generate_report(
+    output_dir: str | Path,
+    run_uuid: str | None = None,
+    **entities: Any,
+) -> Path:
     """Generate final HTML report for defacing results.
 
     Creates an HTML report using nireports that combines registration and
@@ -150,7 +160,7 @@ def generate_report(output_dir, **entities):
     """
     robj = Report(
         output_dir,
-        "TODO: make UUID",
+        run_uuid,
         bootstrap_file=resources.files("skullduggery.data").joinpath("bootstrap-defacing.yml"),
         **entities,
     )

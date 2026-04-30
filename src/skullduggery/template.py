@@ -18,7 +18,7 @@ def get_template(
     template_name: str = DEFAULT_TEMPLATE,
     bids_filters: dict[str, Any] = {"suffix": "T1w"},
     age: tuple[float, str] | None = None,
-    resolution=1,
+    resolution: int = 1,
 ) -> tuple[Path, Path]:
     """Retrieve template and transformation files from TemplateFlow.
 
@@ -62,13 +62,14 @@ def get_template(
         template_name,
         suffix=suffix,
         resolution=resolution,
+        desc=None,
         cohort=cohort,
     )
 
     tpl_mask = tplflow.get(
         template_name,
-        suffix='mask',
-        desc='brain',
+        suffix="mask",
+        desc="brain",
         resolution=resolution,
         cohort=cohort,
     )
@@ -90,9 +91,11 @@ def get_template(
     # see https://www.templateflow.org/python-client/0.7.1/api/templateflow.api.html#templateflow.api.templates
     # for query mechanisms.
 
-    if len(tpl) == 0:
-        raise RuntimeError(f"failed to get contrast {suffix} from template:{template_name}")
+    if isinstance(tpl, list):
+        if len(tpl) == 0:
+            raise RuntimeError(f"failed to get contrast {suffix} from template:{template_name}")
+        else:
+            tpl = tpl[0]
     if isinstance(reg_to_default, list) and len(reg_to_default) == 0:
         raise RuntimeError(f"failed to get transform to default template from template:{template_name}")
-    tpl = tpl[0] if isinstance(tpl, list) else tpl
     return tpl, tpl_mask, reg_to_default
