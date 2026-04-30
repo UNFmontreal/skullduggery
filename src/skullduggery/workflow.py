@@ -104,10 +104,13 @@ def deface_workflow(layout, args):
     if not len(deface_ref_images):
         logging.error(f"no reference image found with condition {filters}")
         return
+    logging.debug(f"found {len(deface_ref_images)} reference images")
 
     for ref_image in deface_ref_images:
         subject = ref_image.entities["subject"]
         session = ref_image.entities.get("session")
+
+        ref_image_nb = ref_image.get_image()
 
         # get age to get the right template if cohorts
         age = get_age_and_unit(layout, subject, session)
@@ -121,10 +124,11 @@ def deface_workflow(layout, args):
             age = args.default_age
 
         # get template for that reference image
-        tpl_path, reg_to_default_tpl = get_template(
+        tpl_path, tpl_mask, reg_to_default_tpl = get_template(
             template_name=args.template, bids_filters=args.ref_bids_filters, age=age
         )
         logging.info("loading template image: %s", tpl_path)
+        tpl_nb = nb.load(tpl_path)
         tpl_to_default_tpl = [nt.load(reg_to_default_tpl)] if reg_to_default_tpl else []
 
         if args.datalad:
@@ -140,7 +144,7 @@ def deface_workflow(layout, args):
         else:
             # registration from ref series to template
             logging.info("running registration of reference serie: %s", ref_image.relpath)
-            reg = registration_antspy(str(tpl_path), ref_image.path)
+            reg = registration_antspy(str(tpl_path), ref_image.path, transform='Affine', ref_mask=tpl_mask)
             copyfile(reg["fwdtransforms"][0], matrix_path)
             new_files.append(matrix_path)
         ref_to_tpl_tx = nt.linear.load(matrix_path)
@@ -161,11 +165,13 @@ def deface_workflow(layout, args):
         for _group_entities, grouped_series in series_to_deface_groups:
             grouped_series = list(grouped_series)
 
-            serie_groupref = [
+            serie_groupref_candidates = [
                 s
                 for s in grouped_series
                 if s.entities.get("part") in ["mag", None] and s.entities.get("echo") in ["1", None]
-            ][0]
+            ]
+            serie_groupref = serie_groupref_candidates[0]
+
             if args.deface_sensitive:
                 if next(annex_repo.get_metadata(serie_groupref.path))[1].get("distribution-restrictions") is None:
                     logging.info(
@@ -217,6 +223,20 @@ def deface_workflow(layout, args):
                 masked_serie.to_filename(serie.path)
                 modified_files.append(serie.path)
 
+            if serie_groupref == ref_image:
+                logging.debug("generating registered template image")
+                #reg to template
+                registered_ref = nt.resampling.apply(
+                    tpl2series, tpl_nb, reference=masked_serie_report
+                )
+            else:
+                #reg to ref series
+                logging.debug("generating registered reference image")
+                ref2serie_tx = nt.linear.Affine(np.linalg.inv(serie2ref_tx.matrix))
+                registered_ref = nt.resampling.apply(
+                    ref2serie_tx, ref_image_nb, reference=masked_serie_report
+                )
+
             mask_fig_path = generate_figure_path(
                 layout,
                 serie_groupref,
@@ -228,6 +248,7 @@ def deface_workflow(layout, args):
                 masked_serie_report,
                 warped_mask,
                 mask_fig_path,
+                registered_tmpl=registered_ref,
             )
             new_files.append(mask_fig_path)
 
@@ -238,7 +259,9 @@ def deface_workflow(layout, args):
         logging.info("saving files changes in datalad")
         dlad_ds.save(
             modified_files + new_files,
-            message="__deface__ %d series/images and update distribution-restrictions" % len(modified_files),
+            message="[deface] 💀 %d series/images and update distribution-restrictions" % len(modified_files),
         )
         logging.info("saving metadata changes in datalad")
         annex_repo.set_metadata(modified_files, remove={"distribution-restrictions": "sensitive"})
+
+    return True

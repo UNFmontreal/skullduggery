@@ -31,7 +31,7 @@ if DEBUG:
     )
 else:
     logging.basicConfig(
-        format="%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s",
+        format="%(levelname)-8s [%(filename)s:%(lineno)d] %(message)s",
         level=logging.INFO,
         force=True,
     )

@@ -65,6 +65,14 @@ def get_template(
         cohort=cohort,
     )
 
+    tpl_mask = tplflow.get(
+        template_name,
+        suffix='mask',
+        desc='brain',
+        resolution=resolution,
+        cohort=cohort,
+    )
+
     reg_to_default = (
         tplflow.get(
             template_name,
@@ -86,4 +94,5 @@ def get_template(
         raise RuntimeError(f"failed to get contrast {suffix} from template:{template_name}")
     if isinstance(reg_to_default, list) and len(reg_to_default) == 0:
         raise RuntimeError(f"failed to get transform to default template from template:{template_name}")
-    return tpl[0] if isinstance(tpl, list) else tpl, reg_to_default
+    tpl = tpl[0] if isinstance(tpl, list) else tpl
+    return tpl, tpl_mask, reg_to_default

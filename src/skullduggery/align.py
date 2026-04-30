@@ -13,6 +13,7 @@ import ants.core.ants_image_io
 def registration_antspy(
     ref,
     moving,
+    ref_mask=None,
     transform="Rigid",
     initial_transform=None,
 ):
@@ -37,10 +38,12 @@ def registration_antspy(
     """
     ref_ants = ants.image_read(ref)
     moving_ants = ants.image_read(moving)
+    ref_mask_ants = ants.image_read(ref_mask) if ref_mask else None
 
     reg = ants.registration(
         ref_ants,
         moving_ants,
+        mask=ref_mask_ants,
         type_of_transform=transform,
         initial_transform=initial_transform,
         aff_metric="MI",

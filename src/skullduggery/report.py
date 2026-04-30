@@ -16,8 +16,8 @@ import nireports.assembler.report
 from nibabel.spatialimages import SpatialImage
 from nireports.assembler import data as nr_data
 from nireports.assembler.report import Report
-from nireports.interfaces.reporting.base import compose_view
-from nireports.reportlets.mosaic import plot_segs
+from nireports.reportlets.utils import compose_view
+from nireports.reportlets.mosaic import plot_segs, plot_mosaic
 
 default_path_patterns = None
 
@@ -54,7 +54,12 @@ class DefaceReport(Report):
         ]
 
 
-def generate_deface_mosaic_report(masked_image: SpatialImage, warped_mask: SpatialImage, output_path: Path):
+def generate_deface_mosaic_report(
+    masked_image: SpatialImage,
+    warped_mask: SpatialImage,
+    output_path: Path,
+    registered_tmpl: Optional[SpatialImage] = None,
+):
     """Generate a mosaic visualization of defacing results.
 
     Creates a mosaic SVG figure showing the defaced image overlaid with
@@ -72,13 +77,20 @@ def generate_deface_mosaic_report(masked_image: SpatialImage, warped_mask: Spati
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     compose_view(
-        plot_segs(
+        bg_svgs = plot_segs(
+            image_nii=registered_tmpl,
+            seg_niis=[warped_mask],
+            bbox_nii=masked_image,
+            masked=True,
+            title='reference',
+        ) if registered_tmpl else [],
+        fg_svgs = plot_segs(
             image_nii=masked_image,
             seg_niis=[warped_mask],
-            # bbox_nii=warped_mask,
+            bbox_nii=masked_image,
             masked=True,
+            title='defaced'
         ),
-        fg_svgs=None,
         out_file=output_path,
     )
 
