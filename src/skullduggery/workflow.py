@@ -20,8 +20,9 @@ import numpy as np
 
 from .align import registration_antspy
 from .mask import generate_deface_ear_mask
-from .report import generate_deface_mosaic_report, generate_figure_path, generate_report
-from .template import get_template
+from .report import (generate_deface_mosaic_report, generate_figure_path,
+                     generate_report)
+from .template import get_template, select_template_by_age
 from .utils import get_age_and_unit, group_series
 
 logger = logging.getLogger(__name__)
@@ -121,13 +122,24 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
             )
             age = args.default_age
 
+        # auto-select template based on age if not explicitly specified
+        template_name = args.template or select_template_by_age(age)
+        if args.template is None and age is not None:
+            logging.info(
+                "auto-selected template %s for sub-%s (age: %s %s)",
+                template_name,
+                subject,
+                age[0],
+                age[1],
+            )
+
         # get template for that reference image
         tpl_path, tpl_mask, reg_to_default_tpl = get_template(
             template_name=args.template, bids_filters=args.ref_bids_filters, age=age
         )
         logger.info("loading template image: %s , mask:%s", tpl_path, tpl_mask)
         tpl_nb = nb.load(tpl_path)
-        tpl_to_default_tpl = [nt.load(reg_to_default_tpl)] if reg_to_default_tpl else []
+        tpl_to_default_tpl = [nt.linear.load(reg_to_default_tpl)] if reg_to_default_tpl else []
 
         if args.datalad:
             dlad_ds.get(ref_image.relpath)
@@ -135,7 +147,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
 
         matrix_path = ref_image.path.replace(
             "_{}{}".format(ref_image.entities["suffix"], ref_image.entities["extension"]),
-            f"_from-{ref_image.entities['suffix']}_to-{args.template}_xfm.mat",
+            f"_from-{ref_image.entities['suffix']}_to-{template_name}_xfm.mat",
         )
 
         if os.path.exists(matrix_path):
