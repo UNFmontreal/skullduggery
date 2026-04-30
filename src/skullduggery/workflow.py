@@ -103,7 +103,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
     deface_ref_images = layout.get(**filters)
     if not len(deface_ref_images):
         logger.error(f"no reference image found with condition {filters}")
-        return
+        return False
     logger.debug(f"found {len(deface_ref_images)} reference images")
 
     for ref_image in deface_ref_images:
