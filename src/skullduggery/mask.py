@@ -36,8 +36,8 @@ def generate_deface_ear_mask(
     affine_ext = mni.affine.copy()
     affine_ext[2, -1] -= mni.shape[-1]
 
-    above_eye_marker = np.asarray([218, 236]) // resolution
-    jaw_marker = np.asarray([140, 180]) // resolution
+    above_eye_marker = np.asarray([218, 225]) // resolution
+    jaw_marker = np.asarray([160, 180]) // resolution
     ear_marker = np.asarray([26, 160]) // resolution
     ear_marker2 = np.asarray([12, 260]) // resolution
     ear_y_marker = np.asarray([70, 140]) // resolution
