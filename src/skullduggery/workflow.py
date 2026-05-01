@@ -122,7 +122,10 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
             age = args.default_age
 
         # auto-select template based on age if not explicitly specified
-        template_name = args.template or select_template_by_age(age)
+        template_name = args.template
+        if template_name is None:
+            template_name = select_template_by_age(age)
+
         if args.template is None and age is not None:
             logging.info(
                 "auto-selected template %s for sub-%s (age: %s %s)",
@@ -134,7 +137,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
 
         # get template for that reference image
         tpl_path, tpl_mask, reg_to_default_tpl = get_template(
-            template_name=args.template, bids_filters=args.ref_bids_filters, age=age
+            template_name=template_name, bids_filters=args.ref_bids_filters, age=age
         )
         logger.info("loading template image: %s , mask:%s", tpl_path, tpl_mask)
         tpl_nb = nb.load(tpl_path)
@@ -208,10 +211,16 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
             )
             serie2ref_tx = nt.linear.load(serie2ref_reg["fwdtransforms"][0])
 
-            series2tpl = nt.manip.TransformChain(tpl_to_default_tpl + [ref_to_tpl_tx, serie2ref_tx])
-            tpl2series = nt.linear.Affine(np.linalg.inv(series2tpl.asaffine().matrix))
+            series2template = nt.manip.TransformChain([ref_to_tpl_tx, serie2ref_tx])
+            series2default_template = nt.manip.TransformChain(tpl_to_default_tpl + [ref_to_tpl_tx, serie2ref_tx])
+            template2series = nt.linear.Affine(np.linalg.inv(series2template.asaffine().matrix))
+            default_template2series = nt.linear.Affine(np.linalg.inv(series2default_template.asaffine().matrix))
             warped_mask = nt.resampling.apply(
-                tpl2series, default_tpl_defacemask, reference=serie_groupref_nb, order=0, output_dtype=np.uint8
+                default_template2series,
+                default_tpl_defacemask,
+                reference=serie_groupref_nb,
+                order=0,
+                output_dtype=np.uint8,
             )
 
             if args.save_all_masks or serie_groupref == ref_image:
@@ -243,7 +252,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
             if serie_groupref == ref_image:
                 logger.debug("generating registered template image")
                 # reg to template
-                registered_ref = nt.resampling.apply(tpl2series, tpl_nb, reference=masked_serie_report)
+                registered_ref = nt.resampling.apply(template2series, tpl_nb, reference=masked_serie_report)
                 desc = "registration"
             else:
                 # reg to ref series
