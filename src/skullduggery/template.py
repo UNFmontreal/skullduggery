@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Dict, Tuple
+from nibabel import load as nb_load
+from nitransforms.manip import TransformChain
 
 import templateflow.api as tplflow
 
@@ -158,16 +160,14 @@ def get_template(
         cohort=cohort,
     )
 
-    reg_to_default = (
-        tplflow.get(
+    default_tpl_to_tpl = None
+    if template_name != DEFAULT_TEMPLATE:
+        default_tpl_to_tpl = tplflow.get(
             template_name,
             suffix="xfm",
             cohort=cohort,
             **{"from": DEFAULT_TEMPLATE},  # from is a python reserved keyword
         )
-        if template_name != DEFAULT_TEMPLATE
-        else None
-    )
 
     # TODO: write fallback to get approximately matching contrasts
     # or suggest alternative templates with existing contrast
@@ -179,6 +179,6 @@ def get_template(
         if len(tpl) == 0:
             raise RuntimeError(f"failed to get contrast {suffix} from template:{template_name}")
         tpl = tpl[0]
-    if isinstance(reg_to_default, list) and len(reg_to_default) == 0:
+    if isinstance(default_tpl_to_tpl, list) and len(reg_to_default) == 0:
         raise RuntimeError(f"failed to get transform to default template from template:{template_name}")
-    return tpl, tpl_mask, reg_to_default
+    return tpl, tpl_mask, default_tpl_to_tpl

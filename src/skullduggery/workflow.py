@@ -124,12 +124,12 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
             )
 
         # get template for that reference image
-        tpl_path, tpl_mask, reg_to_default_tpl = get_template(
-            template_name=template_name, bids_filters=args.ref_bids_filters, age=age
-        )
-        logger.info("loading template image: %s , mask:%s", tpl_path, tpl_mask)
+        tpl_path, tpl_mask, default_tpl_to_tpl = get_template(template_name, args.ref_bids_filters, age=age)
+        logger.debug("loading template image: %s , mask:%s", tpl_path, tpl_mask)
         tpl_nb = nb.load(tpl_path)
-        tpl_to_default_tpl = [nt.linear.load(reg_to_default_tpl)] if reg_to_default_tpl else []
+        default_tpl_to_tpl_tx = (
+            nt.manip.TransformChain.from_filename(default_tpl_to_tpl, fmt="itk") if default_tpl_to_tpl else None
+        )
 
         if args.datalad:
             dlad_ds.get(ref_image.relpath)
@@ -180,9 +180,12 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
             serie2ref_tx = nt.linear.load(serie2ref_reg["fwdtransforms"][0])
 
             series2template = nt.manip.TransformChain([ref_to_tpl_tx, serie2ref_tx])
-            series2default_template = nt.manip.TransformChain(tpl_to_default_tpl + [ref_to_tpl_tx, serie2ref_tx])
+            #            series2default_template = nt.manip.TransformChain(tpl_to_default_tpl + [ref_to_tpl_tx, serie2ref_tx])
             template2series = nt.linear.Affine(np.linalg.inv(series2template.asaffine().matrix))
-            default_template2series = nt.linear.Affine(np.linalg.inv(series2default_template.asaffine().matrix))
+            #            default_template2series = nt.linear.Affine(np.linalg.inv(series2default_template.asaffine().matrix))
+            default_template2series = (
+                default_tpl_to_tpl_tx + template2series if default_tpl_to_tpl_tx else template2series
+            )
             warped_mask = nt.resampling.apply(
                 default_template2series,
                 default_tpl_defacemask,
