@@ -7,9 +7,7 @@ including support for age-specific cohorts and template transformations.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, Tuple
-from nibabel import load as nb_load
-from nitransforms.manip import TransformChain
+from typing import Any
 
 import templateflow.api as tplflow
 
@@ -180,6 +178,6 @@ def get_template(
         if len(tpl) == 0:
             raise RuntimeError(f"failed to get contrast {suffix} from template:{template_name}")
         tpl = tpl[0]
-    if isinstance(default_tpl_to_tpl, list) and len(reg_to_default) == 0:
+    if isinstance(default_tpl_to_tpl, list) and len(default_tpl_to_tpl) == 0:
         raise RuntimeError(f"failed to get transform to default template from template:{template_name}")
     return tpl, tpl_mask, default_tpl_to_tpl

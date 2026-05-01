@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import itertools
 import logging
-from typing import Iterable, Literal, cast
+from typing import Iterable, Literal, cast, Generator
 
 import bids
 
@@ -60,7 +60,7 @@ def get_age_and_unit(
         logger.warning("participants.tsv metadata does not define supported age units")
         return None
 
-    return participant_age, age_unit
+    return (participant_age, age_unit)
 
 
 # from nibabies
@@ -130,7 +130,9 @@ def filters_query(layout: bids.BIDSLayout, subject: str, session: str | None, bi
     return series
 
 
-def group_series(series: Iterable, ref_image) -> itertools.groupby:
+def group_series(
+    series: Iterable, ref_image
+) -> Generator[tuple[dict, bids.layout.BIDSFile, list], bids.layout.BIDSFile, list[bids.layout.BIDSFile]]:
     """Group imaging series by BIDS entities, ignoring multi-part entities.
 
     Groups a collection of imaging series by their BIDS entities, excluding
