@@ -88,7 +88,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
     default_tpl_defacemask = generate_deface_ear_mask(default_tpl_nb)
 
     # lookup reference images
-    deface_ref_images = filters_query(layout, subject, session, [args.ref_bids_filters])
+    deface_ref_images = filters_query(layout, args.participant_label, args.session_label, [args.ref_bids_filters])
     if not len(deface_ref_images):
         logger.error(f"no reference image found with condition {filters}")
         return False
