@@ -74,13 +74,13 @@ def output_debug(
     """Apply registered transformation and save warped image.
 
     Applies the registration transformation to the moving image and saves
-    the result to the specified output path.
+    the result to the specified output path. Used for debugging and visualization.
 
     Args:
         ref: Path to reference (fixed) image.
         moving: Path to moving image to be warped.
-        tx: Path(s) to transformation file(s). Can be a single file or list.
-        out_path: Output path for the warped image.
+        tx: Path(s) to transformation file(s). Can be a single file or list of files.
+        out_path: Output path for the warped image in NIfTI format.
     """
     ref_ants = ants.image_read(str(ref))
     moving_ants = ants.image_read(str(moving))

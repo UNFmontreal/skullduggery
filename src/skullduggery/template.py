@@ -99,11 +99,11 @@ def get_template(
     bids_filters: dict[str, Any] = {"suffix": "T1w"},
     age: tuple[float, str] | None = None,
     resolution: int = 1,
-) -> tuple[Path, Path]:
+) -> tuple[Path, Path, Path | None]:
     """Retrieve template and transformation files from TemplateFlow.
 
-    Fetches the specified template and optional transform to default template,
-    with automatic cohort selection for age-stratified templates.
+    Fetches the specified template, brain mask, and optional transform to default
+    template, with automatic cohort selection for age-stratified templates.
 
     Args:
         template_name: TemplateFlow template name. Defaults to MNI152NLin6Asym.
@@ -114,8 +114,9 @@ def get_template(
         resolution: Template resolution in mm. Defaults to 1.
 
     Returns:
-        tuple: (template_path, transform_to_default_path) where:
+        tuple: (template_path, brain_mask_path, transform_to_default_path) where:
             - template_path: Path to selected template image
+            - brain_mask_path: Path to template brain mask
             - transform_to_default_path: Path to transform to DEFAULT_TEMPLATE,
               or None if template is already the default
 
