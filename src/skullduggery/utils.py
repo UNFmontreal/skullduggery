@@ -100,7 +100,7 @@ def _get_age_units(data: dict) -> AgeUnit | bool:
 
 GROUPED_ENTITIES = ["part", "echo", "reconstruction"]
 
-def filters_query(layout, bids_filters):
+def filters_query(layout, subject, session, bids_filters):
     series_to_deface = []
     for filters in bids_filters:
         series_to_deface.extend(
@@ -126,6 +126,17 @@ def group_series(series: Iterable) -> itertools.groupby:
         itertools.groupby: Iterator of (entities_dict, series_group) tuples.
             Each group shares the same entities except GROUPED_ENTITIES.
     """
-    return itertools.groupby(
+    group_gen = itertools.groupby(
         series, lambda x: {k: v for k, v in x.get_entities(metadata=False).items() if k not in GROUPED_ENTITIES}
     )
+    for _group_entities, grouped_series in group_gen:
+        grouped_series = list(grouped_series)
+        
+        serie_groupref_candidates = [
+            s
+            for s in grouped_series
+            if s.entities.get("part") in ["mag", None] and s.entities.get("echo") in ["1", None]
+        ]
+
+        serie_groupref = ref_image if ref_image in serie_groupref_candidates else serie_groupref_candidates[0]
+        yield _group_entities, serie_groupref, grouped_series

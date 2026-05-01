@@ -19,7 +19,7 @@ import nitransforms as nt
 import numpy as np
 
 from .align import registration_antspy
-from .mask import generate_deface_ear_mask
+from .mask import generate_deface_ear_mask, mask_nifti
 from .report import generate_deface_mosaic_report, generate_figure_path, generate_report
 from .template import get_template, select_template_by_age
 from .utils import get_age_and_unit, group_series, filters_query
@@ -87,15 +87,8 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
     default_tpl_nb = nb.load(default_tpl)
     default_tpl_defacemask = generate_deface_ear_mask(default_tpl_nb)
 
-
-    ref_filters = {
-        "subject": args.participant_label,
-        "session": args.session_label,
-        "extension": ["nii", "nii.gz"],
-        **args.ref_bids_filters,
-    }
     # lookup reference images
-    deface_ref_images = layout.get(**ref_filters)
+    deface_ref_images = filters_query(layout, subject, session, [args.ref_bids_filters])
     if not len(deface_ref_images):
         logger.error(f"no reference image found with condition {filters}")
         return False
@@ -153,30 +146,19 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
             # registration from ref series to template
             logger.info("running registration of reference serie: %s", ref_image.relpath)
             reg = registration_antspy(
-                str(tpl_path),
+                tpl_path,
                 ref_image.path,
                 transform="TRSAA",
-                ref_mask=str(tpl_mask),
+                ref_mask=tpl_mask,
                 verbose=args.debug_level.upper == "DEBUG",
             )
             copyfile(reg["fwdtransforms"][0], matrix_path)
             new_files.append(matrix_path)
         ref_to_tpl_tx = nt.linear.load(matrix_path)
 
+        series_to_deface = filters_query(layout, subject, session, args.other_bids_filters)
 
-        series_to_deface = filters_query(layout, args.other_bids_filters)
-        series_to_deface_groups = group_series(series_to_deface)
-
-        for _group_entities, grouped_series in series_to_deface_groups:
-            grouped_series = list(grouped_series)
-
-            serie_groupref_candidates = [
-                s
-                for s in grouped_series
-                if s.entities.get("part") in ["mag", None] and s.entities.get("echo") in ["1", None]
-            ]
-
-            serie_groupref = ref_image if ref_image in serie_groupref_candidates else serie_groupref_candidates[0]
+        for _group_entities, serie_groupref, grouped_series in group_series(series_to_deface, ref_image):
 
             if args.deface_sensitive:
                 if next(annex_repo.get_metadata(serie_groupref.path))[1].get("distribution-restrictions") is None:
@@ -187,9 +169,9 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
             logger.info("defacing %s", serie_groupref.relpath)
 
             if args.datalad:
-                dlad_ds.get([gs.path for gs in grouped_series])
-                # unlock before making any change to avoid unwanted save
-                annex_repo.unlock([gs.path for gs in grouped_series])
+                group_paths = [gs.path for gs in grouped_series]
+                dlad_ds.get(group_paths)
+                annex_repo.unlock(group_paths)
             serie_groupref_nb = serie_groupref.get_image()
 
             serie2ref_reg = registration_antspy(
@@ -224,11 +206,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
 
             for serie in grouped_series:
                 serie_nb = serie.get_image()
-                masked_serie = nb.Nifti1Image(
-                    np.asanyarray(serie_nb.dataobj) * np.asanyarray(warped_mask.dataobj),
-                    serie_nb.affine,
-                    serie_nb.header,
-                )
+                masked_serie = mask_nifti(serie_nb, warped_mask)
                 if serie == serie_groupref:
                     # keep for report later
                     masked_serie_report = masked_serie
@@ -245,12 +223,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
                 logger.debug("generating registered reference image")
                 ref2serie_tx = nt.linear.Affine(np.linalg.inv(serie2ref_tx.matrix))
                 registered_ref = nt.resampling.apply(ref2serie_tx, ref_image_nb, reference=masked_serie_report)
-                # mask the reference with the mask, to avoid leaking face in the report
-                registered_ref = nb.Nifti1Image(
-                    np.asanyarray(registered_ref.dataobj) * np.asanyarray(warped_mask.dataobj),
-                    registered_ref.affine,
-                    registered_ref.header,
-                )
+                registered_ref = mask_nifti(registered_ref, warped_mask)
                 desc = "mask"
 
             mask_fig_path = generate_figure_path(

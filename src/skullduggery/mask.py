@@ -66,3 +66,11 @@ def generate_deface_ear_mask(
     deface_ear_mask[:, :, -1] = 0
     deface_ear_mask[:, :, : mni.shape[2]] = deface_ear_mask[:, :, mni.shape[2], np.newaxis]
     return nb.Nifti1Image(deface_ear_mask, affine_ext)
+
+
+def mask_nifti(input, mask):
+    return nb.Nifti1Image(
+        np.asanyarray(input.dataobj) * np.asanyarray(mask.dataobj),
+        input.affine,
+        input.header,
+    )
