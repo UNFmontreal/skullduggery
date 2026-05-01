@@ -100,6 +100,17 @@ def _get_age_units(data: dict) -> AgeUnit | bool:
 
 GROUPED_ENTITIES = ["part", "echo", "reconstruction"]
 
+def filters_query(layout, bids_filters):
+    series_to_deface = []
+    for filters in bids_filters:
+        series_to_deface.extend(
+            layout.get(
+                extension=["nii", "nii.gz"],
+                subject=subject,
+                session=session,
+                **filters,
+            )
+        )
 
 def group_series(series: Iterable) -> itertools.groupby:
     """Group imaging series by BIDS entities, ignoring multi-part entities.

@@ -22,7 +22,7 @@ from .align import registration_antspy
 from .mask import generate_deface_ear_mask
 from .report import generate_deface_mosaic_report, generate_figure_path, generate_report
 from .template import get_template, select_template_by_age
-from .utils import get_age_and_unit, group_series
+from .utils import get_age_and_unit, group_series, filters_query
 
 logger = logging.getLogger(__name__)
 
@@ -80,27 +80,22 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
         dlad_ds = datalad.api.Dataset(args.bids_path)
         annex_repo = dlad_ds.repo
 
-    subject_list = args.participant_label if args.participant_label else bids.layout.Query.ANY
-    session_list = args.session_label if args.session_label else bids.layout.Query.ANY
-    filters = {
-        "subject": subject_list,
-        "session": session_list,
-        "extension": ["nii", "nii.gz"],
-        **args.ref_bids_filters,
-    }
-
     new_files, modified_files = [], []
 
     # generate deface mask in default template space (MNI)
     default_tpl, _, _ = get_template()
     default_tpl_nb = nb.load(default_tpl)
     default_tpl_defacemask = generate_deface_ear_mask(default_tpl_nb)
-    # save it as file for ANTS
-    _, tpl_mask_filename = tempfile.mkstemp(suffix=".nii.gz", prefix="tpl_mask")
-    default_tpl_defacemask.to_filename(tpl_mask_filename)
 
+
+    ref_filters = {
+        "subject": args.participant_label,
+        "session": args.session_label,
+        "extension": ["nii", "nii.gz"],
+        **args.ref_bids_filters,
+    }
     # lookup reference images
-    deface_ref_images = layout.get(**filters)
+    deface_ref_images = layout.get(**ref_filters)
     if not len(deface_ref_images):
         logger.error(f"no reference image found with condition {filters}")
         return False
@@ -165,17 +160,8 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
             new_files.append(matrix_path)
         ref_to_tpl_tx = nt.linear.load(matrix_path)
 
-        series_to_deface = []
-        for filters in args.other_bids_filters:
-            series_to_deface.extend(
-                layout.get(
-                    extension=["nii", "nii.gz"],
-                    subject=subject,
-                    session=session,
-                    **filters,
-                )
-            )
 
+        series_to_deface = filters_query(layout, args.other_bids_filters)
         series_to_deface_groups = group_series(series_to_deface)
 
         for _group_entities, grouped_series in series_to_deface_groups:
