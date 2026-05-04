@@ -47,9 +47,9 @@ def generate_deface_ear_mask(
     z_span = above_eye_marker[1] - jaw_marker[1]
     for z in range(jaw_marker[1], above_eye_marker[1] + 1):
         t = (z - jaw_marker[1]) / z_span
+        y = round(jaw_marker[0] + (above_eye_marker[0] - jaw_marker[0]) * (1 - (1 - t) * (1 - t)))
         # curve vending up
-        # y = round(jaw_marker[0] + (above_eye_marker[0] - jaw_marker[0]) * (1 - (1 - t) * (1 - t)))
-        y = round(jaw_marker[0] + (above_eye_marker[0] - jaw_marker[0]) * (t * t))
+        # y = round(jaw_marker[0] + (above_eye_marker[0] - jaw_marker[0]) * (t * t))
         deface_ear_mask[:, y:, z] = 0
 
     # remove ears
