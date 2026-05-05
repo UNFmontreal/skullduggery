@@ -45,15 +45,27 @@ def registration_antspy(
     moving_ants = ants.image_read(str(moving))
     ref_mask_ants = ants.image_read(str(ref_mask)) if ref_mask else None
 
+    # coud use legacy function in ants but dev advice against:
+    #     use_legacy_histogram_matching : boolean
+    #     if True, use the original histogram matching in ANTs. This is not recommended, but is available for backwards
+    #     compatibilty with earlier versions, where it was always turned on. The default is False. A better implementation of
+    #     histogram matching is available in the ants.histogram_match_image2 function.
+
+    moving_for_registration = ants.histogram_match_image2(
+        moving_ants,
+        ref_ants,
+        reference_mask=ref_mask_ants,
+    )
+
     if initial_transform is None:
         initial_transform = ants.affine_initializer(
             ref_ants,
-            moving_ants,
+            moving_for_registration,
         )
 
     reg = ants.registration(
         ref_ants,
-        moving_ants,
+        moving_for_registration,
         mask=ref_mask_ants,
         mask_all_stages=ref_mask is not None,
         type_of_transform=transform,
