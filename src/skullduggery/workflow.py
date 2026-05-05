@@ -277,19 +277,6 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
                     desc=desc,
                     report_dir=report_dir,
                 )
-                for stale_desc in ("registration", "mask"):
-                    if stale_desc == desc:
-                        continue
-                    stale_fig_path = generate_figure_path(
-                        layout,
-                        serie,
-                        desc=stale_desc,
-                        report_dir=report_dir,
-                    )
-                    if stale_fig_path.exists():
-                        logger.info("removing stale deface report figure: %s", stale_fig_path)
-                        stale_fig_path.unlink()
-                        new_files.append(stale_fig_path)
                 logger.info("generating deface mosaic report: %s", mask_fig_path)
                 generate_deface_mosaic_report(
                     masked_serie,
