@@ -38,8 +38,8 @@ def generate_deface_ear_mask(
 
     above_eye_marker = np.asarray([218, 236]) // resolution
     jaw_marker = np.asarray([140, 180]) // resolution
-    ear_marker = np.asarray([26, 160]) // resolution
-    ear_marker2 = np.asarray([12, 260]) // resolution
+    ear_marker = np.asarray([21, 160]) // resolution
+    ear_marker2 = np.asarray([7, 260]) // resolution
     ear_y_marker = np.asarray([70, 140]) // resolution
 
     # remove face
