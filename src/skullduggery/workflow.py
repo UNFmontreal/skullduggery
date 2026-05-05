@@ -96,7 +96,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
     default_tpl, _, _ = get_template()
     default_tpl_nb = nb.load(default_tpl)
     #default_tpl_defacemask = generate_deface_ear_mask(default_tpl_nb)
-    default_deface_mask_path = resources.files("skullduggery.data").joinpath("tpl-MNI152Nlin6Asym_desc-deface_mask.nii.gz")
+    default_deface_mask_path = resources.files("skullduggery.data").joinpath("tpl-MNI152NLin6Asym_desc-deface_mask.nii.gz")
     default_tpl_defacemask = nb.load(default_deface_mask_path)
 
     # lookup reference images
