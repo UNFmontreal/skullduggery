@@ -12,6 +12,7 @@ import os
 import tempfile
 from pathlib import Path
 from shutil import copyfile
+from importlib import resources
 
 import bids
 import nibabel as nb
@@ -85,7 +86,9 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
     # generate deface mask in default template space (MNI)
     default_tpl, _, _ = get_template()
     default_tpl_nb = nb.load(default_tpl)
-    default_tpl_defacemask = generate_deface_ear_mask(default_tpl_nb)
+    #default_tpl_defacemask = generate_deface_ear_mask(default_tpl_nb)
+    default_deface_mask_path = resources.files("skullduggery.data").joinpath("tpl-MNI152Nlin6Asym_desc-deface_mask.nii.gz")
+    default_tpl_defacemask = nb.load(default_deface_mask_path)
 
     # lookup reference images
     deface_ref_images = filters_query(layout, args.participant_label, args.session_label, [args.ref_bids_filters])
