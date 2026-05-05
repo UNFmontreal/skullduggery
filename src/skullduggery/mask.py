@@ -7,7 +7,16 @@ while preserving brain tissue, using template-based hard-coded anatomical marker
 from __future__ import annotations
 
 import nibabel as nb
+from nibabel.processing import resample_from_to
+from nibabel.spatialimages import SpatialImage
 import numpy as np
+
+
+def _mask_for_image(mask: SpatialImage, image: SpatialImage) -> SpatialImage:
+    """Return mask data sampled onto the target image grid."""
+    if mask.shape == image.shape and np.allclose(mask.affine, image.affine):
+        return mask
+    return resample_from_to(mask, image, order=0)
 
 
 def generate_deface_ear_mask(

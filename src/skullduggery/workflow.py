@@ -17,12 +17,11 @@ from importlib import resources
 import bids
 import nibabel as nb
 from nibabel.processing import resample_from_to
-from nibabel.spatialimages import SpatialImage
 import nitransforms as nt
 import numpy as np
 
 from .align import registration_antspy
-from .mask import generate_deface_ear_mask, mask_nifti
+from .mask import _mask_for_image, generate_deface_ear_mask, mask_nifti
 from .report import generate_deface_mosaic_report, generate_figure_path, generate_report
 from .template import get_template, select_template_by_age
 from .utils import get_age_and_unit, group_series, filters_query
@@ -33,13 +32,6 @@ try:
     import datalad.api
 except ImportError:
     datalad = None
-
-
-def _mask_for_image(mask: SpatialImage, image: SpatialImage) -> SpatialImage:
-    """Return mask data sampled onto the target image grid."""
-    if mask.shape == image.shape and np.allclose(mask.affine, image.affine):
-        return mask
-    return resample_from_to(mask, image, order=0)
 
 
 def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
