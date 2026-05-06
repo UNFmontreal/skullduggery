@@ -34,6 +34,24 @@ except ImportError:
     datalad = None
 
 
+def _compose_transform_chain(*transforms: nt.base.TransformBase | None) -> nt.base.TransformBase:
+    """Compose transforms without mutating reusable TransformChain instances."""
+    chain_transforms = []
+    for transform in transforms:
+        if transform is None:
+            continue
+        if isinstance(transform, nt.manip.TransformChain):
+            chain_transforms.extend(transform.transforms)
+        else:
+            chain_transforms.append(transform)
+
+    if not chain_transforms:
+        raise ValueError("at least one transform is required")
+    if len(chain_transforms) == 1:
+        return chain_transforms[0]
+    return nt.manip.TransformChain(chain_transforms)
+
+
 def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
     """Execute the complete defacing workflow on a BIDS dataset.
 
@@ -197,9 +215,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
             #            series2default_template = nt.manip.TransformChain(tpl_to_default_tpl + [ref_to_tpl_tx, serie2ref_tx])
             template2series = nt.linear.Affine(np.linalg.inv(series2template.asaffine().matrix))
             #            default_template2series = nt.linear.Affine(np.linalg.inv(series2default_template.asaffine().matrix))
-            default_template2series = (
-                default_tpl_to_tpl_tx + template2series if default_tpl_to_tpl_tx else template2series
-            )
+            default_template2series = _compose_transform_chain(default_tpl_to_tpl_tx, template2series)
             warped_mask = nt.resampling.apply(
                 default_template2series,
                 default_tpl_defacemask,
