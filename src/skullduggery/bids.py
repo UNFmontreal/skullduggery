@@ -13,7 +13,7 @@ from pathlib import Path
 from bids.layout import Query
 
 
-def _filter_pybids_any(dct):
+def _filter_pybids_any(dct: dict) -> dict:
     """Convert wildcard strings in dictionary to pyBIDS Query.ANY.
 
     Transforms dictionary values that are "*" strings into pyBIDS Query.ANY
@@ -28,7 +28,7 @@ def _filter_pybids_any(dct):
     return {k: Query.ANY if v == "*" else v for k, v in dct.items()}
 
 
-def _bids_filter(json_str):
+def _bids_filter(json_str: str) -> dict | list:
     """Parse BIDS filter JSON from string or file path.
 
     Loads JSON configuration for BIDS filtering, with support for both

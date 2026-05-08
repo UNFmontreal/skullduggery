@@ -1,9 +1,17 @@
 package: skullduggery
-title: Visual report for participant '{subject}' - skullduggery
+title: Visual report for participant '{subject}' - skullduggery defacing
 sections:
-
-- name: Anatomical
+- name: Registration to template
+  ordering: session,suffix,acquisition,run
+  reportlets:
+  - bids: {datatype: figures, desc: registration}
+    description: The red outline shows the warped defacing mask used for this image.
+    caption: Registration to the template and masking
+    static: false
+- name: Defacing
   ordering: session,suffix,acquisition,run
   reportlets:
   - bids: {datatype: figures, desc: mask}
-    caption: The red overlay shows the warped defacing mask used for this image.
+    description: The red outline shows the warped defacing mask used for this image.
+    caption: Registration to the session reference and masking
+    static: false

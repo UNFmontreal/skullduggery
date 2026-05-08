@@ -31,15 +31,13 @@ dependencies = [
     "antspyx",
     "nitransforms",
     "nireports",
+    "datalad",
 ]
 
 [project.scripts]
 skullduggery = "skullduggery.run:main"
 
 [project.optional-dependencies]
-datalad = [
-    "datalad",
-]
 spark = [
     "pyspark>=3.0.0"
 ]
