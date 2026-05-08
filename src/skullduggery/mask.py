@@ -7,7 +7,16 @@ while preserving brain tissue, using template-based hard-coded anatomical marker
 from __future__ import annotations
 
 import nibabel as nb
+from nibabel.processing import resample_from_to
+from nibabel.spatialimages import SpatialImage
 import numpy as np
+
+
+def _mask_for_image(mask: SpatialImage, image: SpatialImage) -> SpatialImage:
+    """Return mask data sampled onto the target image grid."""
+    if mask.shape == image.shape and np.allclose(mask.affine, image.affine):
+        return mask
+    return resample_from_to(mask, image, order=0)
 
 
 def generate_deface_ear_mask(
@@ -38,16 +47,18 @@ def generate_deface_ear_mask(
 
     above_eye_marker = np.asarray([218, 236]) // resolution
     jaw_marker = np.asarray([140, 180]) // resolution
-    ear_marker = np.asarray([26, 160]) // resolution
-    ear_marker2 = np.asarray([12, 260]) // resolution
+    ear_marker = np.asarray([21, 160]) // resolution
+    ear_marker2 = np.asarray([7, 260]) // resolution
     ear_y_marker = np.asarray([70, 140]) // resolution
 
     # remove face
     deface_ear_mask[:, jaw_marker[0] :, : jaw_marker[1]] = 0
-    y_coords = np.round(np.linspace(jaw_marker[0], above_eye_marker[0], above_eye_marker[1] - jaw_marker[1])).astype(
-        np.int32
-    )
-    for z, y in zip(range(jaw_marker[1], above_eye_marker[1]), y_coords):
+    z_span = above_eye_marker[1] - jaw_marker[1]
+    for z in range(jaw_marker[1], above_eye_marker[1] + 1):
+        t = (z - jaw_marker[1]) / z_span
+        y = round(jaw_marker[0] + (above_eye_marker[0] - jaw_marker[0]) * (1 - (1 - t) * (1 - t)))
+        # curve vending up
+        # y = round(jaw_marker[0] + (above_eye_marker[0] - jaw_marker[0]) * (t * t))
         deface_ear_mask[:, y:, z] = 0
 
     # remove ears
