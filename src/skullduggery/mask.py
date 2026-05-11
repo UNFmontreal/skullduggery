@@ -14,6 +14,13 @@ import numpy as np
 
 def _mask_for_image(mask: SpatialImage, image: SpatialImage) -> SpatialImage:
     """Return mask data sampled onto the target image grid."""
+    if (
+        len(mask.shape) == 4
+        and len(image.shape) == 4
+        and mask.shape == image.shape
+        and np.allclose(mask.affine, image.affine)
+    ):
+        return mask
     image_shape = image.shape[:3] if len(image.shape) == 4 else image.shape
     if mask.shape == image_shape and np.allclose(mask.affine, image.affine):
         return mask

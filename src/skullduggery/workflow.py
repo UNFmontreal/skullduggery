@@ -9,19 +9,17 @@ from __future__ import annotations
 import argparse
 import logging
 import os
-import tempfile
 from pathlib import Path
 from shutil import copyfile
 from importlib import resources
 
 import bids
 import nibabel as nb
-from nibabel.processing import resample_from_to
 import nitransforms as nt
 import numpy as np
 
-from .align import first_spatial_volume, registration_antspy
-from .mask import _mask_for_image, generate_deface_ear_mask, mask_nifti
+from .align import spatial_volume, registration_antspy
+from .mask import mask_nifti
 from .report import generate_deface_mosaic_report, generate_figure_path, generate_report
 from .template import get_template, select_template_by_age
 from .utils import get_age_and_unit, group_series, filters_query
@@ -50,6 +48,99 @@ def _compose_transform_chain(*transforms: nt.base.TransformBase | None) -> nt.ba
     if len(chain_transforms) == 1:
         return chain_transforms[0]
     return nt.manip.TransformChain(chain_transforms)
+
+
+def _volume_count(image: nb.spatialimages.SpatialImage) -> int:
+    """Return the number of spatial volumes in a 3D or 4D image."""
+    if len(image.shape) == 3:
+        return 1
+    if len(image.shape) == 4:
+        return image.shape[3]
+    raise ValueError(f"Expected a 3D or 4D image, got shape {image.shape}")
+
+
+def _stack_like_reference(
+    volumes: list[nb.spatialimages.SpatialImage],
+    reference: nb.spatialimages.SpatialImage,
+    dtype: np.dtype | type | None = None,
+) -> nb.spatialimages.SpatialImage:
+    """Stack 3D volumes into a 4D image when the reference is 4D."""
+    if len(reference.shape) == 3:
+        return volumes[0]
+
+    data = np.stack([np.asanyarray(volume.dataobj) for volume in volumes], axis=-1)
+    if dtype is not None:
+        data = data.astype(dtype)
+    header = reference.header.copy()
+    header.set_data_shape(data.shape)
+    if dtype is not None:
+        header.set_data_dtype(dtype)
+    return nb.Nifti1Image(data, reference.affine, header)
+
+
+def _build_series_deface_mask(
+    ref_image,
+    ref_image_nb: nb.spatialimages.SpatialImage,
+    serie,
+    serie_nb: nb.spatialimages.SpatialImage,
+    ref_to_tpl_tx: nt.base.TransformBase,
+    default_tpl_to_tpl_tx: nt.base.TransformBase | None,
+    default_tpl_defacemask: nb.spatialimages.SpatialImage,
+    tpl_nb: nb.spatialimages.SpatialImage,
+    verbose: bool = False,
+) -> tuple[nb.spatialimages.SpatialImage, nb.spatialimages.SpatialImage, str]:
+    """Register each series volume to the reference and return native masks for defacing/reporting."""
+    volume_masks = []
+    registered_refs = []
+    volume_total = _volume_count(serie_nb)
+
+    for volume_index in range(volume_total):
+        if volume_total > 1:
+            logger.info(
+                "registering volume %d/%d of %s to reference",
+                volume_index + 1,
+                volume_total,
+                serie.relpath,
+            )
+
+        serie2ref_reg = registration_antspy(
+            ref_image.path,
+            serie.path,
+            transform="Rigid",
+            initial_transform="Identity",
+            verbose=verbose,
+            moving_volume_index=volume_index,
+        )
+        serie2ref_tx = nt.linear.load(serie2ref_reg["fwdtransforms"][0])
+
+        series2template = nt.manip.TransformChain([ref_to_tpl_tx, serie2ref_tx])
+        template2series = nt.linear.Affine(np.linalg.inv(series2template.asaffine().matrix))
+        default_template2series = _compose_transform_chain(default_tpl_to_tpl_tx, template2series)
+        volume_reference = spatial_volume(serie_nb, volume_index)
+        volume_mask = nt.resampling.apply(
+            default_template2series,
+            default_tpl_defacemask,
+            reference=volume_reference,
+            order=0,
+            output_dtype=np.uint8,
+        )
+        volume_masks.append(volume_mask)
+
+        if serie == ref_image:
+            logger.debug("generating registered template image")
+            registered_ref = nt.resampling.apply(template2series, tpl_nb, reference=volume_reference)
+            groupref_desc = "registration"
+        else:
+            logger.debug("generating registered reference image")
+            ref2serie_tx = nt.linear.Affine(np.linalg.inv(serie2ref_tx.matrix))
+            registered_ref = nt.resampling.apply(ref2serie_tx, ref_image_nb, reference=volume_reference)
+            registered_ref = mask_nifti(registered_ref, volume_mask)
+            groupref_desc = "mask"
+        registered_refs.append(registered_ref)
+
+    serie_mask = _stack_like_reference(volume_masks, serie_nb, dtype=np.uint8)
+    registered_ref = _stack_like_reference(registered_refs, serie_nb)
+    return serie_mask, registered_ref, groupref_desc
 
 
 def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
@@ -106,7 +197,9 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
     default_tpl, _, _ = get_template()
     default_tpl_nb = nb.load(default_tpl)
     #default_tpl_defacemask = generate_deface_ear_mask(default_tpl_nb)
-    default_deface_mask_path = resources.files("skullduggery.data").joinpath("tpl-MNI152NLin6Asym_desc-deface_mask.nii.gz")
+    default_deface_mask_path = resources.files("skullduggery.data").joinpath(
+        "tpl-MNI152NLin6Asym_desc-deface_mask.nii.gz"
+    )
     default_tpl_defacemask = nb.load(default_deface_mask_path)
 
     # lookup reference images
@@ -178,7 +271,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
                 ref_image.path,
                 transform="TRSAA",
                 ref_mask=tpl_mask,
-                verbose=args.debug_level.upper == "DEBUG",
+                verbose=args.debug_level.upper() == "DEBUG",
             )
             copyfile(reg["fwdtransforms"][0], matrix_path)
             new_files.append(matrix_path)
@@ -204,31 +297,21 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
                 group_paths = [gs.path for gs in grouped_series]
                 dlad_ds.get(group_paths)
                 annex_repo.unlock(group_paths)
-            serie_groupref_nb = serie_groupref.get_image()
-
-            serie2ref_reg = registration_antspy(
-                ref_image.path, serie_groupref.path, transform="Rigid", initial_transform="Identity"
-            )
-            serie2ref_tx = nt.linear.load(serie2ref_reg["fwdtransforms"][0])
-
-            series2template = nt.manip.TransformChain([ref_to_tpl_tx, serie2ref_tx])
-            #            series2default_template = nt.manip.TransformChain(tpl_to_default_tpl + [ref_to_tpl_tx, serie2ref_tx])
-            template2series = nt.linear.Affine(np.linalg.inv(series2template.asaffine().matrix))
-            #            default_template2series = nt.linear.Affine(np.linalg.inv(series2default_template.asaffine().matrix))
-            default_template2series = _compose_transform_chain(default_tpl_to_tpl_tx, template2series)
-            warped_mask = nt.resampling.apply(
-                default_template2series,
-                default_tpl_defacemask,
-                reference=first_spatial_volume(serie_groupref_nb),
-                order=0,
-                output_dtype=np.uint8,
-            )
 
             report_inputs = []
-            groupref_report_input = None
             for serie in grouped_series:
                 serie_nb = serie.get_image()
-                serie_mask = _mask_for_image(warped_mask, serie_nb)
+                serie_mask, registered_ref, desc = _build_series_deface_mask(
+                    ref_image,
+                    ref_image_nb,
+                    serie,
+                    serie_nb,
+                    ref_to_tpl_tx,
+                    default_tpl_to_tpl_tx,
+                    default_tpl_defacemask,
+                    tpl_nb,
+                    verbose=args.debug_level.upper() == "DEBUG",
+                )
 
                 if args.save_all_masks or serie == ref_image:
                     warped_mask_path = Path(
@@ -245,44 +328,13 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
                     serie_mask.to_filename(warped_mask_path)
 
                 masked_serie = mask_nifti(serie_nb, serie_mask)
-                report_input = (serie, serie_nb, serie_mask, masked_serie)
+                report_input = (serie, serie_mask, masked_serie, registered_ref, desc)
                 report_inputs.append(report_input)
-                if serie == serie_groupref:
-                    groupref_report_input = report_input
                 masked_serie.to_filename(serie.path)
                 modified_files.append(serie.path)
                 processed_series_paths.add(serie.path)
 
-            if groupref_report_input is None:
-                raise RuntimeError(f"Could not find group reference series in grouped series: {serie_groupref.path}")
-
-            _, _, groupref_mask, masked_groupref_report = groupref_report_input
-            groupref_mask_report = first_spatial_volume(groupref_mask)
-            masked_groupref_report = first_spatial_volume(masked_groupref_report)
-            if serie_groupref == ref_image:
-                logger.debug("generating registered template image")
-                # reg to template
-                registered_groupref = nt.resampling.apply(template2series, tpl_nb, reference=masked_groupref_report)
-                groupref_desc = "registration"
-            else:
-                # reg to ref series
-                logger.debug("generating registered reference image")
-                ref2serie_tx = nt.linear.Affine(np.linalg.inv(serie2ref_tx.matrix))
-                registered_groupref = nt.resampling.apply(ref2serie_tx, ref_image_nb, reference=masked_groupref_report)
-                registered_groupref = mask_nifti(registered_groupref, groupref_mask_report)
-                groupref_desc = "mask"
-
-            for serie, serie_nb, serie_mask, masked_serie in report_inputs:
-                serie_mask_report = first_spatial_volume(serie_mask)
-                masked_serie_report = first_spatial_volume(masked_serie)
-                if serie == serie_groupref:
-                    registered_ref = registered_groupref
-                    desc = groupref_desc
-                else:
-                    registered_ref = resample_from_to(registered_groupref, masked_serie_report)
-                    registered_ref = mask_nifti(registered_ref, serie_mask_report)
-                    desc = "registration" if serie == ref_image else "mask"
-
+            for serie, serie_mask, masked_serie, registered_ref, desc in report_inputs:
                 mask_fig_path = generate_figure_path(
                     layout,
                     serie,
@@ -292,7 +344,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
                 logger.info("generating deface mosaic report: %s", mask_fig_path)
                 generate_deface_mosaic_report(
                     masked_serie,
-                    serie_mask_report,
+                    serie_mask,
                     mask_fig_path,
                     registered_tmpl=registered_ref,
                 )
