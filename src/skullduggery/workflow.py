@@ -20,7 +20,7 @@ from nibabel.processing import resample_from_to
 import nitransforms as nt
 import numpy as np
 
-from .align import registration_antspy
+from .align import first_spatial_volume, registration_antspy
 from .mask import _mask_for_image, generate_deface_ear_mask, mask_nifti
 from .report import generate_deface_mosaic_report, generate_figure_path, generate_report
 from .template import get_template, select_template_by_age
@@ -219,7 +219,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
             warped_mask = nt.resampling.apply(
                 default_template2series,
                 default_tpl_defacemask,
-                reference=serie_groupref_nb,
+                reference=first_spatial_volume(serie_groupref_nb),
                 order=0,
                 output_dtype=np.uint8,
             )
@@ -257,6 +257,8 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
                 raise RuntimeError(f"Could not find group reference series in grouped series: {serie_groupref.path}")
 
             _, _, groupref_mask, masked_groupref_report = groupref_report_input
+            groupref_mask_report = first_spatial_volume(groupref_mask)
+            masked_groupref_report = first_spatial_volume(masked_groupref_report)
             if serie_groupref == ref_image:
                 logger.debug("generating registered template image")
                 # reg to template
@@ -267,16 +269,18 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
                 logger.debug("generating registered reference image")
                 ref2serie_tx = nt.linear.Affine(np.linalg.inv(serie2ref_tx.matrix))
                 registered_groupref = nt.resampling.apply(ref2serie_tx, ref_image_nb, reference=masked_groupref_report)
-                registered_groupref = mask_nifti(registered_groupref, groupref_mask)
+                registered_groupref = mask_nifti(registered_groupref, groupref_mask_report)
                 groupref_desc = "mask"
 
             for serie, serie_nb, serie_mask, masked_serie in report_inputs:
+                serie_mask_report = first_spatial_volume(serie_mask)
+                masked_serie_report = first_spatial_volume(masked_serie)
                 if serie == serie_groupref:
                     registered_ref = registered_groupref
                     desc = groupref_desc
                 else:
-                    registered_ref = resample_from_to(registered_groupref, serie_nb)
-                    registered_ref = mask_nifti(registered_ref, serie_mask)
+                    registered_ref = resample_from_to(registered_groupref, masked_serie_report)
+                    registered_ref = mask_nifti(registered_ref, serie_mask_report)
                     desc = "registration" if serie == ref_image else "mask"
 
                 mask_fig_path = generate_figure_path(
@@ -288,7 +292,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
                 logger.info("generating deface mosaic report: %s", mask_fig_path)
                 generate_deface_mosaic_report(
                     masked_serie,
-                    serie_mask,
+                    serie_mask_report,
                     mask_fig_path,
                     registered_tmpl=registered_ref,
                 )

@@ -6,10 +6,12 @@ layouts using pyBIDS, including filtering utilities for query wildcards.
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 from pathlib import Path
 
+import bids
 from bids.layout import Query
 
 
@@ -47,3 +49,11 @@ def _bids_filter(json_str: str) -> dict | list:
     if os.path.exists(os.path.abspath(json_str)):
         json_str = Path(json_str).read_text()
     return json.loads(json_str, object_hook=_filter_pybids_any)
+
+
+def create_bids_layout(args: argparse.Namespace) -> bids.BIDSLayout:
+    """Create the BIDS layout with the requested validation strictness."""
+    return bids.BIDSLayout(
+        os.path.abspath(args.bids_path),
+        validate=not args.no_strict_bids_validation,
+    )

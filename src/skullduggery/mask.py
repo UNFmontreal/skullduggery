@@ -14,9 +14,10 @@ import numpy as np
 
 def _mask_for_image(mask: SpatialImage, image: SpatialImage) -> SpatialImage:
     """Return mask data sampled onto the target image grid."""
-    if mask.shape == image.shape and np.allclose(mask.affine, image.affine):
+    image_shape = image.shape[:3] if len(image.shape) == 4 else image.shape
+    if mask.shape == image_shape and np.allclose(mask.affine, image.affine):
         return mask
-    return resample_from_to(mask, image, order=0)
+    return resample_from_to(mask, (image_shape, image.affine), order=0)
 
 
 def generate_deface_ear_mask(
@@ -80,8 +81,12 @@ def generate_deface_ear_mask(
 
 
 def mask_nifti(input, mask):
+    input_data = np.asanyarray(input.dataobj)
+    mask_data = np.asanyarray(mask.dataobj)
+    while mask_data.ndim < input_data.ndim:
+        mask_data = mask_data[..., np.newaxis]
     return nb.Nifti1Image(
-        np.asanyarray(input.dataobj) * np.asanyarray(mask.dataobj),
+        input_data * mask_data,
         input.affine,
         input.header,
     )
