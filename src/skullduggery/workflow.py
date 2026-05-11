@@ -84,8 +84,7 @@ def _build_series_deface_mask(
     serie,
     serie_nb: nb.spatialimages.SpatialImage,
     ref_to_tpl_tx: nt.base.TransformBase,
-    default_tpl_to_tpl_tx: nt.base.TransformBase | None,
-    default_tpl_defacemask: nb.spatialimages.SpatialImage,
+    ref_deface_mask: nb.spatialimages.SpatialImage,
     tpl_nb: nb.spatialimages.SpatialImage,
     verbose: bool = False,
 ) -> tuple[nb.spatialimages.SpatialImage, nb.spatialimages.SpatialImage, str]:
@@ -103,23 +102,25 @@ def _build_series_deface_mask(
                 serie.relpath,
             )
 
-        serie2ref_reg = registration_antspy(
-            ref_image.path,
-            serie.path,
-            transform="Rigid",
-            initial_transform="Identity",
-            verbose=verbose,
-            moving_volume_index=volume_index,
-        )
-        serie2ref_tx = nt.linear.load(serie2ref_reg["fwdtransforms"][0])
-
-        series2template = nt.manip.TransformChain([ref_to_tpl_tx, serie2ref_tx])
-        template2series = nt.linear.Affine(np.linalg.inv(series2template.asaffine().matrix))
-        default_template2series = _compose_transform_chain(default_tpl_to_tpl_tx, template2series)
         volume_reference = spatial_volume(serie_nb, volume_index)
+
+        if serie.path == ref_image.path:
+            series_to_ref_tx = nt.linear.Affine()
+        else:
+            serie2ref_reg = registration_antspy(
+                ref_image.path,
+                serie.path,
+                transform="Rigid",
+                initial_transform="Identity",
+                verbose=verbose,
+                moving_volume_index=volume_index,
+            )
+            serie2ref_tx = nt.linear.load(serie2ref_reg["fwdtransforms"][0])
+            series_to_ref_tx = nt.linear.Affine(np.linalg.inv(serie2ref_tx.matrix))
+
         volume_mask = nt.resampling.apply(
-            default_template2series,
-            default_tpl_defacemask,
+            series_to_ref_tx,
+            ref_deface_mask,
             reference=volume_reference,
             order=0,
             output_dtype=np.uint8,
@@ -128,12 +129,16 @@ def _build_series_deface_mask(
 
         if serie == ref_image:
             logger.debug("generating registered template image")
-            registered_ref = nt.resampling.apply(template2series, tpl_nb, reference=volume_reference)
+            tpl_to_ref_tx = nt.linear.Affine(np.linalg.inv(ref_to_tpl_tx.matrix))
+            registered_ref = nt.resampling.apply(tpl_to_ref_tx, tpl_nb, reference=volume_reference)
             groupref_desc = "registration"
         else:
             logger.debug("generating registered reference image")
-            ref2serie_tx = nt.linear.Affine(np.linalg.inv(serie2ref_tx.matrix))
-            registered_ref = nt.resampling.apply(ref2serie_tx, ref_image_nb, reference=volume_reference)
+            registered_ref = nt.resampling.apply(
+                series_to_ref_tx,
+                spatial_volume(ref_image_nb),
+                reference=volume_reference,
+            )
             registered_ref = mask_nifti(registered_ref, volume_mask)
             groupref_desc = "mask"
         registered_refs.append(registered_ref)
@@ -276,6 +281,15 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
             copyfile(reg["fwdtransforms"][0], matrix_path)
             new_files.append(matrix_path)
         ref_to_tpl_tx = nt.linear.load(matrix_path)
+        ref_to_tpl_pull_tx = nt.linear.Affine(np.linalg.inv(ref_to_tpl_tx.matrix))
+        ref_to_default_tpl_tx = _compose_transform_chain(ref_to_tpl_pull_tx, default_tpl_to_tpl_tx)
+        ref_deface_mask = nt.resampling.apply(
+            ref_to_default_tpl_tx,
+            default_tpl_defacemask,
+            reference=spatial_volume(ref_image_nb),
+            order=0,
+            output_dtype=np.uint8,
+        )
 
         series_to_deface = filters_query(layout, subject, session, args.other_bids_filters)
 
@@ -307,8 +321,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
                     serie,
                     serie_nb,
                     ref_to_tpl_tx,
-                    default_tpl_to_tpl_tx,
-                    default_tpl_defacemask,
+                    ref_deface_mask,
                     tpl_nb,
                     verbose=args.debug_level.upper() == "DEBUG",
                 )
