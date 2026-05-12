@@ -33,7 +33,19 @@ except ImportError:
 
 
 def _compose_transform_chain(*transforms: nt.base.TransformBase | None) -> nt.base.TransformBase:
-    """Compose transforms without mutating reusable TransformChain instances."""
+    """Compose transforms without mutating reusable TransformChain instances.
+
+    Args:
+        transforms: Transform objects or transform chains in application
+            order. ``None`` values are ignored.
+
+    Returns:
+        A single transform when one usable transform is provided, otherwise
+        a new ``TransformChain`` containing the flattened transforms.
+
+    Raises:
+        ValueError: If all provided transforms are ``None``.
+    """
     chain_transforms = []
     for transform in transforms:
         if transform is None:
@@ -51,7 +63,17 @@ def _compose_transform_chain(*transforms: nt.base.TransformBase | None) -> nt.ba
 
 
 def _volume_count(image: nb.spatialimages.SpatialImage) -> int:
-    """Return the number of spatial volumes in a 3D or 4D image."""
+    """Return the number of spatial volumes in a 3D or 4D image.
+
+    Args:
+        image: Nibabel image to inspect.
+
+    Returns:
+        ``1`` for a 3D image, or the fourth-dimension length for a 4D image.
+
+    Raises:
+        ValueError: If ``image`` is not 3D or 4D.
+    """
     if len(image.shape) == 3:
         return 1
     if len(image.shape) == 4:
@@ -64,7 +86,18 @@ def _stack_like_reference(
     reference: nb.spatialimages.SpatialImage,
     dtype: np.dtype | type | None = None,
 ) -> nb.spatialimages.SpatialImage:
-    """Stack 3D volumes into a 4D image when the reference is 4D."""
+    """Stack 3D volumes into a 4D image when the reference is 4D.
+
+    Args:
+        volumes: Per-volume 3D images already sampled on the reference grid.
+        reference: Image whose shape, affine, and header should define the
+            returned image. A 3D reference returns the first input volume.
+        dtype: Optional dtype to use for the stacked data and output header.
+
+    Returns:
+        A 3D image when ``reference`` is 3D, otherwise a 4D image with one
+        input volume per fourth-dimension frame.
+    """
     if len(reference.shape) == 3:
         return volumes[0]
 
@@ -88,7 +121,30 @@ def _build_series_deface_mask(
     tpl_nb: nb.spatialimages.SpatialImage,
     verbose: bool = False,
 ) -> tuple[nb.spatialimages.SpatialImage, nb.spatialimages.SpatialImage, str]:
-    """Register each series volume to the reference and return native masks for defacing/reporting."""
+    """Build native-space deface masks and report references for one series.
+
+    Each 4D volume is registered independently to the participant reference
+    image. The participant reference-space deface mask is then resampled onto
+    that volume's native grid.
+
+    Args:
+        ref_image: PyBIDS file for the participant reference image.
+        ref_image_nb: Loaded participant reference image.
+        serie: PyBIDS file for the target series being defaced.
+        serie_nb: Loaded target series image. May be 3D or 4D.
+        ref_to_tpl_tx: Linear transform between the participant reference and
+            selected template, used for reference report rendering.
+        ref_deface_mask: Deface mask already sampled in participant reference
+            image space.
+        tpl_nb: Loaded selected template image for QA report rendering.
+        verbose: Whether ANTs registration should emit verbose output.
+
+    Returns:
+        Tuple ``(serie_mask, registered_ref, desc)`` where ``serie_mask`` is
+        sampled on the target series grid, ``registered_ref`` is a 3D/4D QA
+        reference image sampled on the same grid, and ``desc`` is the figure
+        description label.
+    """
     volume_masks = []
     registered_refs = []
     volume_total = _volume_count(serie_nb)

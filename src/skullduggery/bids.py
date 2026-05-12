@@ -52,7 +52,16 @@ def _bids_filter(json_str: str) -> dict | list:
 
 
 def create_bids_layout(args: argparse.Namespace) -> bids.BIDSLayout:
-    """Create the BIDS layout with the requested validation strictness."""
+    """Create the BIDS layout with the requested validation strictness.
+
+    Args:
+        args: Parsed CLI arguments with ``bids_path`` and
+            ``no_strict_bids_validation`` attributes.
+
+    Returns:
+        PyBIDS layout rooted at ``args.bids_path``. Validation is disabled
+        when ``--no-strict-bids-validation`` was requested.
+    """
     return bids.BIDSLayout(
         os.path.abspath(args.bids_path),
         validate=not args.no_strict_bids_validation,

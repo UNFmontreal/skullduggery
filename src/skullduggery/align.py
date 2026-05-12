@@ -16,7 +16,21 @@ from nibabel.spatialimages import SpatialImage
 
 
 def spatial_volume(image: SpatialImage, volume_index: int = 0) -> SpatialImage:
-    """Return one 3D spatial volume from a 3D or 4D image."""
+    """Return one 3D spatial volume from a 3D or 4D image.
+
+    Args:
+        image: Nibabel image to inspect. May be 3D or 4D.
+        volume_index: Zero-based index to extract when ``image`` is 4D.
+            Ignored for 3D images.
+
+    Returns:
+        A 3D image on the same spatial grid as ``image``. For 3D inputs,
+        the original image is returned unchanged.
+
+    Raises:
+        ValueError: If ``image`` is not 3D or 4D.
+        IndexError: If ``volume_index`` is outside the 4D image range.
+    """
     if len(image.shape) == 3:
         return image
     if len(image.shape) != 4:
@@ -31,11 +45,26 @@ def spatial_volume(image: SpatialImage, volume_index: int = 0) -> SpatialImage:
 
 
 def first_spatial_volume(image: SpatialImage) -> SpatialImage:
-    """Return a 3D image, using the first volume when a 4D image is provided."""
+    """Return the first 3D spatial volume from a 3D or 4D image.
+
+    Args:
+        image: Nibabel image to inspect. May be 3D or 4D.
+
+    Returns:
+        The original 3D image, or volume 0 when ``image`` is 4D.
+    """
     return spatial_volume(image)
 
 
 def _ants_dimension(image) -> int:
+    """Return the dimensionality of an ANTs-like image.
+
+    Args:
+        image: ANTs image, or an object exposing a ``shape`` attribute.
+
+    Returns:
+        Image dimensionality as an integer.
+    """
     dimension = getattr(image, "dimension", None)
     if dimension is not None:
         return int(dimension)
@@ -43,7 +72,18 @@ def _ants_dimension(image) -> int:
 
 
 def _ants_volume(image, volume_index: int = 0):
-    """Return a 3D ANTs image for registration."""
+    """Return a 3D ANTs image for registration.
+
+    Args:
+        image: ANTs image to use for registration.
+        volume_index: Zero-based index to extract when ``image`` is 4D.
+
+    Returns:
+        A 3D ANTs image. 3D inputs are returned unchanged.
+
+    Raises:
+        ValueError: If ``image`` is not 3D or 4D.
+    """
     dimension = _ants_dimension(image)
     if dimension == 3:
         return image
@@ -53,7 +93,22 @@ def _ants_volume(image, volume_index: int = 0):
 
 
 def registration_images(ref_ants, moving_ants, ref_volume_index: int = 0, moving_volume_index: int = 0):
-    """Verify ANTs image dimensions and choose a valid 3D moving image when needed."""
+    """Verify ANTs dimensions and select 3D registration inputs.
+
+    Args:
+        ref_ants: Fixed/reference ANTs image.
+        moving_ants: Moving ANTs image.
+        ref_volume_index: Volume to use if the reference is 4D.
+        moving_volume_index: Volume to use if the moving image is 4D.
+
+    Returns:
+        Tuple of ``(reference_image, moving_image)`` suitable for ANTs
+        3D registration.
+
+    Raises:
+        ValueError: If image dimensions cannot be reduced to compatible
+        3D registration inputs.
+    """
     ref_dimension = _ants_dimension(ref_ants)
     moving_dimension = _ants_dimension(moving_ants)
 

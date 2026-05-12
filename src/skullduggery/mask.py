@@ -13,7 +13,16 @@ import numpy as np
 
 
 def _mask_for_image(mask: SpatialImage, image: SpatialImage) -> SpatialImage:
-    """Return mask data sampled onto the target image grid."""
+    """Return mask data sampled onto the target image grid.
+
+    Args:
+        mask: 3D or 4D binary mask image.
+        image: Target image whose spatial grid should receive the mask.
+
+    Returns:
+        ``mask`` unchanged when it already matches ``image``. Otherwise,
+        a nearest-neighbor 3D mask sampled onto the target spatial grid.
+    """
     if (
         len(mask.shape) == 4
         and len(image.shape) == 4
@@ -88,6 +97,17 @@ def generate_deface_ear_mask(
 
 
 def mask_nifti(input, mask):
+    """Apply a 3D or 4D mask to a NIfTI-like image.
+
+    Args:
+        input: Image to deface. May be 3D or 4D.
+        mask: Binary mask sampled on the input image grid. A 3D mask is
+            broadcast across 4D input volumes; a 4D mask is applied
+            volume-by-volume.
+
+    Returns:
+        NIfTI image with masked data and the input affine/header.
+    """
     input_data = np.asanyarray(input.dataobj)
     mask_data = np.asanyarray(mask.dataobj)
     while mask_data.ndim < input_data.ndim:

@@ -61,7 +61,18 @@ FALLBACK_FIGURE_ENTITY_PREFIXES = {
 
 
 def _volume_image(image: SpatialImage, volume_index: int) -> SpatialImage:
-    """Return one spatial volume from a 3D or 4D image."""
+    """Return one spatial volume from a 3D or 4D image.
+
+    Args:
+        image: Image to use for report plotting.
+        volume_index: Zero-based index to extract when ``image`` is 4D.
+
+    Returns:
+        A 3D image suitable for ``plot_segs``.
+
+    Raises:
+        ValueError: If ``image`` is not 3D or 4D.
+    """
     if len(image.shape) == 3:
         return image
     if len(image.shape) != 4:
@@ -74,7 +85,18 @@ def _volume_image(image: SpatialImage, volume_index: int) -> SpatialImage:
 
 
 def _iter_report_volumes(image: SpatialImage):
-    """Yield the 3D volumes that should be shown in the defacing report."""
+    """Yield the 3D volumes that should be shown in the defacing report.
+
+    Args:
+        image: 3D or 4D image to render in a report.
+
+    Yields:
+        Tuples of ``(volume_index, volume_image)``. ``volume_index`` is
+        ``None`` for 3D images and zero-based for 4D images.
+
+    Raises:
+        ValueError: If ``image`` is not 3D or 4D.
+    """
     if len(image.shape) == 3:
         yield None, image
         return
@@ -86,7 +108,17 @@ def _iter_report_volumes(image: SpatialImage):
 
 
 def _matching_report_volume(image: SpatialImage, volume_index: int | None) -> SpatialImage:
-    """Return the corresponding 3D report volume, reusing 3D images for every view."""
+    """Return the corresponding 3D report volume for another report image.
+
+    Args:
+        image: 3D or 4D image that should match the currently plotted volume.
+        volume_index: Volume index from ``_iter_report_volumes``. ``None``
+            indicates that the primary report image is 3D.
+
+    Returns:
+        A 3D image. 3D inputs are reused for every volume; 4D inputs are
+        indexed by ``volume_index``.
+    """
     if len(image.shape) == 3:
         return image
     if volume_index is None:
@@ -95,6 +127,15 @@ def _matching_report_volume(image: SpatialImage, volume_index: int | None) -> Sp
 
 
 def _add_plot(svgs: list[str], plot_output) -> None:
+    """Append one or more SVG fragments returned by ``plot_segs``.
+
+    Args:
+        svgs: List that will be modified in place.
+        plot_output: A single SVG fragment, or an iterable of fragments.
+
+    Returns:
+        None. ``svgs`` is updated in place.
+    """
     if isinstance(plot_output, (list, tuple)):
         svgs.extend(plot_output)
     else:
@@ -102,6 +143,16 @@ def _add_plot(svgs: list[str], plot_output) -> None:
 
 
 def _format_bids_entity(name: str, value: Any) -> str | None:
+    """Format one entity as a BIDS filename component.
+
+    Args:
+        name: Entity name from ``FALLBACK_FIGURE_ENTITY_PREFIXES``.
+        value: Entity value from PyBIDS.
+
+    Returns:
+        A formatted component such as ``sub-01`` or ``acq-ihmtrage``, or
+        ``None`` when ``value`` is missing.
+    """
     if value is None:
         return None
     prefix = FALLBACK_FIGURE_ENTITY_PREFIXES[name]
@@ -115,6 +166,17 @@ def _format_bids_entity(name: str, value: Any) -> str | None:
 
 
 def _fallback_figure_path(entities: dict[str, Any]) -> Path:
+    """Build a BIDS-like figure path when PyBIDS cannot.
+
+    Args:
+        entities: PyBIDS entities for the source image plus figure metadata.
+
+    Returns:
+        Relative path under ``sub-*/ses-*/figures`` with a ``.svg`` suffix.
+
+    Raises:
+        RuntimeError: If the entities do not include an image suffix.
+    """
     suffix = entities.get("suffix")
     if not suffix:
         raise RuntimeError(f"Cannot generate a figure path without a suffix: {entities}")
@@ -153,6 +215,8 @@ def generate_deface_mosaic_report(
         masked_image: Defaced anatomical image as nibabel SpatialImage.
         warped_mask: Defacing mask in native image space as nibabel SpatialImage.
         output_path: Path where SVG output will be saved.
+        registered_tmpl: Optional reference/template image already sampled on
+            the same grid as ``masked_image`` for side-by-side QA.
 
     Raises:
         OSError: If parent directory cannot be created or file cannot be written.
