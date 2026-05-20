@@ -10,51 +10,25 @@ from __future__ import annotations
 import json
 from importlib import resources
 from pathlib import Path
+from typing import Any
 
 import bids
 import nireports.assembler.report
 from nibabel.spatialimages import SpatialImage
 from nireports.assembler import data as nr_data
 from nireports.assembler.report import Report
-from nireports.interfaces.reporting.base import compose_view
+from nireports.reportlets.utils import compose_view
 from nireports.reportlets.mosaic import plot_segs
 
 default_path_patterns = None
 
 
-class DefaceReport(Report):
-    """BIDS-compatible report generator for defacing results.
-
-    Extends nireports Report class to generate reports structured around
-    registration and defacing results, with automatic section organization.
-    """
-
-    def __init__(self, subject, session=None):
-        super().__init__(subject, session)
-        self.subject = subject
-
-    def _load_config(self, config):
-        """Load and configure report sections.
-
-        Sets up report structure with Registration and Defacing sections
-        that automatically discover corresponding SVG figures.
-
-        Args:
-            config: Configuration object (unused, inherited parameter).
-        """
-        self.sections = [
-            {
-                "name": "Registration",
-                "reportlets": [{"pattern": "**/sub-{subject}_ses-{session}_*desc-reg_*.svg"}],
-            },
-            {
-                "name": "Defacing",
-                "reportlets": [{"pattern": "**/sub-{subject}_ses-{session}_*desc-mask_*.svg"}],
-            },
-        ]
-
-
-def generate_deface_mosaic_report(masked_image: SpatialImage, warped_mask: SpatialImage, output_path: Path):
+def generate_deface_mosaic_report(
+    masked_image: SpatialImage,
+    warped_mask: SpatialImage,
+    output_path: Path,
+    registered_tmpl: SpatialImage | None = None,
+) -> None:
     """Generate a mosaic visualization of defacing results.
 
     Creates a mosaic SVG figure showing the defaced image overlaid with
@@ -72,18 +46,30 @@ def generate_deface_mosaic_report(masked_image: SpatialImage, warped_mask: Spati
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     compose_view(
-        plot_segs(
-            image_nii=masked_image,
-            seg_niis=[warped_mask],
-            # bbox_nii=warped_mask,
-            masked=True,
+        bg_svgs=(
+            plot_segs(
+                image_nii=registered_tmpl,
+                seg_niis=[warped_mask],
+                bbox_nii=masked_image,
+                masked=True,
+                title="reference",
+            )
+            if registered_tmpl
+            else []
         ),
-        fg_svgs=None,
+        fg_svgs=plot_segs(
+            image_nii=masked_image, seg_niis=[warped_mask], bbox_nii=masked_image, masked=True, title="defaced"
+        ),
         out_file=output_path,
     )
 
 
-def generate_figure_path(layout: bids.BIDSLayout, series: bids.layout.BIDSFile, desc: str, report_dir: Path | None = None) -> Path:
+def generate_figure_path(
+    layout: bids.BIDSLayout,
+    series: bids.layout.BIDSFile,
+    desc: str,
+    report_dir: Path | None = None,
+) -> Path:
     """Generate BIDS-compliant path for a figure file.
 
     Constructs a BIDS-formatted path for saving figures (SVGs) derived from
@@ -123,7 +109,11 @@ def generate_figure_path(layout: bids.BIDSLayout, series: bids.layout.BIDSFile, 
     return root / path
 
 
-def generate_report(output_dir, **entities):
+def generate_report(
+    output_dir: str | Path,
+    run_uuid: str | None = None,
+    **entities: Any,
+) -> Path:
     """Generate final HTML report for defacing results.
 
     Creates an HTML report using nireports that combines registration and
@@ -138,7 +128,7 @@ def generate_report(output_dir, **entities):
     """
     robj = Report(
         output_dir,
-        "TODO: make UUID",
+        run_uuid,
         bootstrap_file=resources.files("skullduggery.data").joinpath("bootstrap-defacing.yml"),
         **entities,
     )

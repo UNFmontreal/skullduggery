@@ -6,23 +6,27 @@ selection, registration, mask warping, and report generation for BIDS datasets.
 
 from __future__ import annotations
 
+import argparse
 import logging
 import os
 import tempfile
 from pathlib import Path
 from shutil import copyfile
+from importlib import resources
 
 import bids
 import nibabel as nb
+from nibabel.processing import resample_from_to
 import nitransforms as nt
 import numpy as np
 
 from .align import registration_antspy
-from .mask import generate_deface_ear_mask
-from .report import (generate_deface_mosaic_report, generate_figure_path,
-                     generate_report)
-from .template import get_template
-from .utils import get_age_and_unit, group_series
+from .mask import _mask_for_image, generate_deface_ear_mask, mask_nifti
+from .report import generate_deface_mosaic_report, generate_figure_path, generate_report
+from .template import get_template, select_template_by_age
+from .utils import get_age_and_unit, group_series, filters_query
+
+logger = logging.getLogger(__name__)
 
 try:
     import datalad.api
@@ -30,7 +34,25 @@ except ImportError:
     datalad = None
 
 
-def deface_workflow(layout, args):
+def _compose_transform_chain(*transforms: nt.base.TransformBase | None) -> nt.base.TransformBase:
+    """Compose transforms without mutating reusable TransformChain instances."""
+    chain_transforms = []
+    for transform in transforms:
+        if transform is None:
+            continue
+        if isinstance(transform, nt.manip.TransformChain):
+            chain_transforms.extend(transform.transforms)
+        else:
+            chain_transforms.append(transform)
+
+    if not chain_transforms:
+        raise ValueError("at least one transform is required")
+    if len(chain_transforms) == 1:
+        return chain_transforms[0]
+    return nt.manip.TransformChain(chain_transforms)
+
+
+def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
     """Execute the complete defacing workflow on a BIDS dataset.
 
     Orchestrates registration-based defacing for all specified anatomical images:
@@ -68,8 +90,6 @@ def deface_workflow(layout, args):
         - Commits to DataLad if enabled
     """
 
-    logging.basicConfig(level=logging.getLevelName(args.debug_level.upper()))
-
     report_dir = layout._root / (args.report_dir or Path(".skullduggery"))
 
     if args.datalad:
@@ -80,39 +100,36 @@ def deface_workflow(layout, args):
         dlad_ds = datalad.api.Dataset(args.bids_path)
         annex_repo = dlad_ds.repo
 
-    subject_list = args.participant_label if args.participant_label else bids.layout.Query.ANY
-    session_list = args.session_label if args.session_label else bids.layout.Query.ANY
-    filters = {
-        "subject": subject_list,
-        "session": session_list,
-        "extension": ["nii", "nii.gz"],
-        **args.ref_bids_filters,
-    }
-
     new_files, modified_files = [], []
 
     # generate deface mask in default template space (MNI)
-    default_tpl, _ = get_template()
+    default_tpl, _, _ = get_template()
     default_tpl_nb = nb.load(default_tpl)
-    default_tpl_defacemask = generate_deface_ear_mask(default_tpl_nb)
-    # save it as file for ANTS
-    _, tpl_mask_filename = tempfile.mkstemp(suffix=".nii.gz", prefix="tpl_mask")
-    default_tpl_defacemask.to_filename(tpl_mask_filename)
+    #default_tpl_defacemask = generate_deface_ear_mask(default_tpl_nb)
+    default_deface_mask_path = resources.files("skullduggery.data").joinpath("tpl-MNI152NLin6Asym_desc-deface_mask.nii.gz")
+    default_tpl_defacemask = nb.load(default_deface_mask_path)
 
     # lookup reference images
-    deface_ref_images = layout.get(**filters)
+    deface_ref_images = filters_query(layout, args.participant_label, args.session_label, [args.ref_bids_filters])
     if not len(deface_ref_images):
-        logging.error(f"no reference image found with condition {filters}")
-        return
+        logger.error(f"no reference image found with condition {filters}")
+        return False
+    logger.debug(f"found {len(deface_ref_images)} reference images")
+
+    processed_series_paths = set()
 
     for ref_image in deface_ref_images:
+        if ref_image.path in processed_series_paths:
+            logger.info("skip %s because it has already been defaced in this run", ref_image.relpath)
+            continue
+
         subject = ref_image.entities["subject"]
         session = ref_image.entities.get("session")
 
         # get age to get the right template if cohorts
         age = get_age_and_unit(layout, subject, session)
         if age is None and args.default_age is not None:
-            logging.warning(
+            logger.warning(
                 "using fallback age %s:%s for sub-%s",
                 args.default_age[0],
                 args.default_age[1],
@@ -120,64 +137,73 @@ def deface_workflow(layout, args):
             )
             age = args.default_age
 
+        # auto-select template based on age if not explicitly specified
+        template_name = args.template
+        if template_name is None:
+            template_name = select_template_by_age(age)
+
+        if args.template is None and age is not None:
+            logging.info(
+                "auto-selected template %s for sub-%s (age: %s %s)",
+                template_name,
+                subject,
+                age[0],
+                age[1],
+            )
+
         # get template for that reference image
-        tpl_path, reg_to_default_tpl = get_template(
-            template_name=args.template, bids_filters=args.ref_bids_filters, age=age
+        tpl_path, tpl_mask, default_tpl_to_tpl = get_template(template_name, args.ref_bids_filters, age=age)
+        logger.debug("loading template image: %s , mask:%s", tpl_path, tpl_mask)
+        tpl_nb = nb.load(tpl_path)
+        default_tpl_to_tpl_tx = (
+            nt.manip.TransformChain.from_filename(default_tpl_to_tpl, fmt="itk") if default_tpl_to_tpl else None
         )
-        logging.info("loading template image: %s", tpl_path)
-        tpl_to_default_tpl = [nt.load(reg_to_default_tpl)] if reg_to_default_tpl else []
 
         if args.datalad:
             dlad_ds.get(ref_image.relpath)
+        ref_image_nb = ref_image.get_image()
 
         matrix_path = ref_image.path.replace(
             "_{}{}".format(ref_image.entities["suffix"], ref_image.entities["extension"]),
-            f"_from-{ref_image.entities['suffix']}_to-{args.template}_xfm.mat",
+            f"_from-{ref_image.entities['suffix']}_to-{template_name}_xfm.mat",
         )
 
         if os.path.exists(matrix_path):
-            logging.info("reusing existing registration matrix: %s", matrix_path)
+            logger.info("reusing existing registration matrix: %s", matrix_path)
         else:
             # registration from ref series to template
-            logging.info("running registration of reference serie: %s", ref_image.relpath)
-            reg = registration_antspy(str(tpl_path), ref_image.path)
+            logger.info("running registration of reference serie: %s", ref_image.relpath)
+            reg = registration_antspy(
+                tpl_path,
+                ref_image.path,
+                transform="TRSAA",
+                ref_mask=tpl_mask,
+                verbose=args.debug_level.upper == "DEBUG",
+            )
             copyfile(reg["fwdtransforms"][0], matrix_path)
             new_files.append(matrix_path)
         ref_to_tpl_tx = nt.linear.load(matrix_path)
 
-        series_to_deface = []
-        for filters in args.other_bids_filters:
-            series_to_deface.extend(
-                layout.get(
-                    extension=["nii", "nii.gz"],
-                    subject=subject,
-                    session=session,
-                    **filters,
-                )
-            )
+        series_to_deface = filters_query(layout, subject, session, args.other_bids_filters)
 
-        series_to_deface_groups = group_series(series_to_deface)
+        for _group_entities, serie_groupref, grouped_series in group_series(series_to_deface, ref_image):
+            grouped_series = [serie for serie in grouped_series if serie.path not in processed_series_paths]
+            if not grouped_series:
+                logger.debug("skip already-defaced series group for %s", ref_image.relpath)
+                continue
 
-        for _group_entities, grouped_series in series_to_deface_groups:
-            grouped_series = list(grouped_series)
-
-            serie_groupref = [
-                s
-                for s in grouped_series
-                if s.entities.get("part") in ["mag", None] and s.entities.get("echo") in ["1", None]
-            ][0]
             if args.deface_sensitive:
                 if next(annex_repo.get_metadata(serie_groupref.path))[1].get("distribution-restrictions") is None:
-                    logging.info(
+                    logger.info(
                         "skip %s as there are no distribution restrictions metadata set.", serie_groupref.relpath
                     )
                     continue
-            logging.info("defacing %s", serie_groupref.relpath)
+            logger.info("defacing %s", serie_groupref.relpath)
 
             if args.datalad:
-                dlad_ds.get([gs.path for gs in grouped_series])
-                # unlock before making any change to avoid unwanted save
-                annex_repo.unlock([gs.path for gs in grouped_series])
+                group_paths = [gs.path for gs in grouped_series]
+                dlad_ds.get(group_paths)
+                annex_repo.unlock(group_paths)
             serie_groupref_nb = serie_groupref.get_image()
 
             serie2ref_reg = registration_antspy(
@@ -185,60 +211,99 @@ def deface_workflow(layout, args):
             )
             serie2ref_tx = nt.linear.load(serie2ref_reg["fwdtransforms"][0])
 
-            series2tpl = nt.manip.TransformChain(tpl_to_default_tpl + [ref_to_tpl_tx, serie2ref_tx])
-            tpl2series = nt.linear.Affine(np.linalg.inv(series2tpl.asaffine().matrix))
+            series2template = nt.manip.TransformChain([ref_to_tpl_tx, serie2ref_tx])
+            #            series2default_template = nt.manip.TransformChain(tpl_to_default_tpl + [ref_to_tpl_tx, serie2ref_tx])
+            template2series = nt.linear.Affine(np.linalg.inv(series2template.asaffine().matrix))
+            #            default_template2series = nt.linear.Affine(np.linalg.inv(series2default_template.asaffine().matrix))
+            default_template2series = _compose_transform_chain(default_tpl_to_tpl_tx, template2series)
             warped_mask = nt.resampling.apply(
-                tpl2series, default_tpl_defacemask, reference=serie_groupref_nb, order=0, output_dtype=np.uint8
+                default_template2series,
+                default_tpl_defacemask,
+                reference=serie_groupref_nb,
+                order=0,
+                output_dtype=np.uint8,
             )
 
-            if args.save_all_masks or serie_groupref == ref_image:
-                warped_mask_path = Path(
-                    serie_groupref.path.replace(
-                        "_%s" % serie_groupref.entities["suffix"],
-                        f"_space-{serie_groupref.entities['suffix']}_desc-deface_mask",
-                    )
-                )
-                if os.path.exists(warped_mask_path):
-                    logging.warning(f"{warped_mask_path} already exists : will not overwrite, clean before rerun")
-                else:
-                    warped_mask.to_filename(warped_mask_path)
-                    new_files.append(warped_mask_path)
-
+            report_inputs = []
+            groupref_report_input = None
             for serie in grouped_series:
                 serie_nb = serie.get_image()
-                masked_serie = nb.Nifti1Image(
-                    np.asanyarray(serie_nb.dataobj) * np.asanyarray(warped_mask.dataobj),
-                    serie_nb.affine,
-                    serie_nb.header,
-                )
+                serie_mask = _mask_for_image(warped_mask, serie_nb)
+
+                if args.save_all_masks or serie == ref_image:
+                    warped_mask_path = Path(
+                        serie.path.replace(
+                            "_%s" % serie.entities["suffix"],
+                            f"_space-{serie.entities['suffix']}_desc-deface_mask",
+                        )
+                    )
+                    if os.path.exists(warped_mask_path):
+                        logger.info("overwriting deface mask to match current image: %s", warped_mask_path)
+                    else:
+                        logger.debug("writing deface mask: %s", warped_mask_path)
+                    new_files.append(warped_mask_path)
+                    serie_mask.to_filename(warped_mask_path)
+
+                masked_serie = mask_nifti(serie_nb, serie_mask)
+                report_input = (serie, serie_nb, serie_mask, masked_serie)
+                report_inputs.append(report_input)
                 if serie == serie_groupref:
-                    # keep for report later
-                    masked_serie_report = masked_serie
+                    groupref_report_input = report_input
                 masked_serie.to_filename(serie.path)
                 modified_files.append(serie.path)
+                processed_series_paths.add(serie.path)
 
-            mask_fig_path = generate_figure_path(
-                layout,
-                serie_groupref,
-                desc="mask",
-                report_dir=report_dir,
-            )
-            logging.info("generating deface mosaic report: %s", mask_fig_path)
-            generate_deface_mosaic_report(
-                masked_serie_report,
-                warped_mask,
-                mask_fig_path,
-            )
-            new_files.append(mask_fig_path)
+            if groupref_report_input is None:
+                raise RuntimeError(f"Could not find group reference series in grouped series: {serie_groupref.path}")
+
+            _, _, groupref_mask, masked_groupref_report = groupref_report_input
+            if serie_groupref == ref_image:
+                logger.debug("generating registered template image")
+                # reg to template
+                registered_groupref = nt.resampling.apply(template2series, tpl_nb, reference=masked_groupref_report)
+                groupref_desc = "registration"
+            else:
+                # reg to ref series
+                logger.debug("generating registered reference image")
+                ref2serie_tx = nt.linear.Affine(np.linalg.inv(serie2ref_tx.matrix))
+                registered_groupref = nt.resampling.apply(ref2serie_tx, ref_image_nb, reference=masked_groupref_report)
+                registered_groupref = mask_nifti(registered_groupref, groupref_mask)
+                groupref_desc = "mask"
+
+            for serie, serie_nb, serie_mask, masked_serie in report_inputs:
+                if serie == serie_groupref:
+                    registered_ref = registered_groupref
+                    desc = groupref_desc
+                else:
+                    registered_ref = resample_from_to(registered_groupref, serie_nb)
+                    registered_ref = mask_nifti(registered_ref, serie_mask)
+                    desc = "registration" if serie == ref_image else "mask"
+
+                mask_fig_path = generate_figure_path(
+                    layout,
+                    serie,
+                    desc=desc,
+                    report_dir=report_dir,
+                )
+                logger.info("generating deface mosaic report: %s", mask_fig_path)
+                generate_deface_mosaic_report(
+                    masked_serie,
+                    serie_mask,
+                    mask_fig_path,
+                    registered_tmpl=registered_ref,
+                )
+                new_files.append(mask_fig_path)
 
         report_path = generate_report(report_dir, subject=subject, session=session)
         new_files.append(report_path)
 
     if args.datalad and len(modified_files):
-        logging.info("saving files changes in datalad")
+        logger.info("saving files changes in datalad")
         dlad_ds.save(
             modified_files + new_files,
-            message="__deface__ %d series/images and update distribution-restrictions" % len(modified_files),
+            message="[deface] 💀 %d series/images and update distribution-restrictions" % len(modified_files),
         )
         logging.info("saving metadata changes in datalad")
         annex_repo.set_metadata(modified_files, remove={"distribution-restrictions": "sensitive"})
+
+    return True

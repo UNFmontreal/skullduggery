@@ -29,7 +29,80 @@ skullduggery/
 └── pyproject.toml          # Project config
 ```
 
-## Development Tasks
+## Workflow Architecture
+
+The defacing workflow orchestrates a multi-stage registration and masking pipeline:
+
+```mermaid
+flowchart TD
+    Start([Load BIDS Dataset]) --> SetupTpl["Generate Template Mask<br/>in Template Space MNI"]
+    SetupTpl --> FindRef["Find All Reference<br/>Images"]
+    
+    FindRef --> RefLoop["For Each Reference Image"]
+    
+    RefLoop --> GetAge["Get Participant Age<br/>from participants.tsv"]
+    GetAge --> LoadTpl["Load Age-Specific<br/>Template"]
+    LoadTpl --> CheckReg{Registration<br/>Matrix<br/>Exists?}
+    
+    CheckReg -->|No| RegRefToTpl["Register Reference<br/>to Template<br/>ANTs TRSAA"]
+    CheckReg -->|Yes| UseExisting["Reuse Existing<br/>Registration"]
+    RegRefToTpl --> GetTx["Extract Forward<br/>Transform"]
+    UseExisting --> GetTx
+    
+    GetTx --> SeriesLoop["For Each Series Group"]
+    
+    SeriesLoop --> SelectRef["Select Group Reference<br/>from Candidates"]
+    SelectRef --> RegSeriesToRef["Register Series<br/>to Group Reference<br/>ANTs Rigid"]
+    RegSeriesToRef --> CombineTx["Combine Transformations<br/>Template→Ref→Series"]
+    
+    CombineTx --> InverseTx["Compute Inverse<br/>Transform<br/>Series→Template"]
+    InverseTx --> WarpMask["Warp Template Mask<br/>to Native Space<br/>via Inverse Transform"]
+    
+    WarpMask --> ApplyMask["Apply Mask to All<br/>Series in Group<br/>Element-wise Multiply"]
+    ApplyMask --> SaveMask["Save Warped Mask<br/>if save_all_masks<br/>or reference series"]
+    
+    SaveMask --> GenReport["Generate Mosaic<br/>Report with<br/>Registered Template"]
+    GenReport --> SaveReport["Save SVG Report<br/>BIDS Compliant Path"]
+    
+    SaveReport --> MoreSeries{More<br/>Series<br/>Groups?}
+    MoreSeries -->|Yes| SeriesLoop
+    MoreSeries -->|No| MoreRef{More<br/>References?}
+    
+    MoreRef -->|Yes| RefLoop
+    MoreRef -->|No| GenHTML["Generate HTML<br/>Report Summary"]
+    GenHTML --> Commit{DataLad<br/>Enabled?}
+    
+    Commit -->|Yes| DL["Commit Changes<br/>to DataLad"]
+    Commit -->|No| End([✓ Workflow Complete])
+    DL --> End
+    
+    style Start fill:#e1f5e1
+    style End fill:#e1f5e1
+    style RegRefToTpl fill:#fff3cd
+    style RegSeriesToRef fill:#fff3cd
+    style WarpMask fill:#cfe2ff
+    style ApplyMask fill:#cfe2ff
+```
+
+### Key Processing Stages
+
+**Template Preparation**
+- Generates a defacing mask in template space using anatomical markers
+- Covers face, ears, and surrounding tissue while preserving brain
+
+**Registration Chain**
+- Reference image → Template: Estimates spatial correspondence
+- Series → Reference: Handles within-subject variation
+- Transformations are chained to map template mask to native space
+
+**Mask Warping**
+- Uses inverse transforms to move template mask to native space
+- Preserves binary mask integrity through nearest-neighbor resampling
+
+**Masking Application**
+- Element-wise multiplication removes defaced regions from all series
+- Applied to complete series groups for consistency
+
 
 ### Tests
 ```bash
