@@ -14,7 +14,7 @@ import sys
 import bids
 import coloredlogs
 
-from .bids import _bids_filter
+from .bids import _bids_filter, create_bids_layout
 from .utils import SUPPORTED_AGE_UNITS
 from .workflow import deface_workflow
 
@@ -112,6 +112,11 @@ def parse_args():
         help="Force pyBIDS reset_database and reindexing",
     )
     parser.add_argument(
+        "--no-strict-bids-validation",
+        action="store_true",
+        help="Disable strict PyBIDS validation to include non-standard filenames or suffixes.",
+    )
+    parser.add_argument(
         "--datalad",
         action="store_true",
         help="Update distribution-restrictions metadata and commit changes",
@@ -179,7 +184,7 @@ def main() -> None:
         handler.setFormatter(formatter)
         package_logger.addHandler(handler)
 
-    layout = bids.BIDSLayout(os.path.abspath(args.bids_path))
+    layout = create_bids_layout(args)
     success = False
 
     success = deface_workflow(layout, args)
