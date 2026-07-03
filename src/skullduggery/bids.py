@@ -66,13 +66,14 @@ def _load_bidsignore(bids_root: pathlib.Path, mode: str = "python") -> Tuple:
                 [
                     re.compile(fnmatch.translate(bi))
                     for bi in bids_ignores
-                    if len(bi) and bi.strip()[0] != "#"
+                    if bi.strip() and not bi.strip().startswith("#")
+                    if bi.strip() and not bi.startswith("#")
                 ]
             )
-        elif mode == "bash":
-            return tuple(
-                [f"m/{bi}/" for bi in bids_ignores if len(bi) and bi.strip()[0] != "#"]
-            )
+    elif mode == "bash":
+        return tuple(
+            [f"m/{bi}/" for bi in bids_ignores if bi.strip() and not bi.startswith("#")]
+        )
     return tuple()
 
 
