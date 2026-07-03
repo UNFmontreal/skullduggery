@@ -9,7 +9,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import pathlib
 from pathlib import Path
+from typing import Tuple
 
 import bids
 from bids.layout import Query
@@ -51,6 +53,29 @@ def _bids_filter(json_str: str) -> dict | list:
     return json.loads(json_str, object_hook=_filter_pybids_any)
 
 
+def _load_bidsignore(bids_root: pathlib.Path, mode: str = "python") -> Tuple:
+    """Load .bidsignore file from a BIDS dataset, returns list of regexps"""
+    bids_ignore_path = bids_root / ".bidsignore"
+    if bids_ignore_path.exists():
+        bids_ignores = bids_ignore_path.read_text().splitlines()
+        if mode == "python":
+            import fnmatch
+            import re
+
+            return tuple(
+                [
+                    re.compile(fnmatch.translate(bi))
+                    for bi in bids_ignores
+                    if len(bi) and bi.strip()[0] != "#"
+                ]
+            )
+        elif mode == "bash":
+            return tuple(
+                [f"m/{bi}/" for bi in bids_ignores if len(bi) and bi.strip()[0] != "#"]
+            )
+    return tuple()
+
+
 def create_bids_layout(args: argparse.Namespace) -> bids.BIDSLayout:
     """Create the BIDS layout with the requested validation strictness.
 
@@ -62,7 +87,12 @@ def create_bids_layout(args: argparse.Namespace) -> bids.BIDSLayout:
         PyBIDS layout rooted at ``args.bids_path``. Validation is disabled
         when ``--no-strict-bids-validation`` was requested.
     """
+    indexer = bids.BIDSLayoutIndexer(
+        ignore=_load_bidsignore(args.bids_path),
+    )
+
     return bids.BIDSLayout(
         os.path.abspath(args.bids_path),
         validate=not args.no_strict_bids_validation,
+        indexer=indexer,
     )
