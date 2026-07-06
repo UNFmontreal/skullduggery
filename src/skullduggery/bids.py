@@ -7,11 +7,11 @@ layouts using pyBIDS, including filtering utilities for query wildcards.
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import os
-import pathlib
+import re
 from pathlib import Path
-from typing import Tuple
 
 import bids
 from bids.layout import Query
@@ -53,27 +53,29 @@ def _bids_filter(json_str: str) -> dict | list:
     return json.loads(json_str, object_hook=_filter_pybids_any)
 
 
-def _load_bidsignore(bids_root: pathlib.Path, mode: str = "python") -> Tuple:
-    """Load .bidsignore file from a BIDS dataset, returns list of regexps"""
-    bids_ignore_path = bids_root / ".bidsignore"
-    if bids_ignore_path.exists():
-        bids_ignores = bids_ignore_path.read_text().splitlines()
-        if mode == "python":
-            import fnmatch
-            import re
+def _bidsignore_patterns(value: str) -> tuple[re.Pattern[str], ...]:
+    """Parse BIDS ignore patterns from inline JSON or a JSON file path."""
+    if os.path.exists(os.path.abspath(value)):
+        value = Path(value).read_text()
 
-            return tuple(
-                [
-                    re.compile(fnmatch.translate(bi))
-                    for bi in bids_ignores
-                    if len(bi) and bi.strip()[0] != "#"
-                ]
-            )
-        elif mode == "bash":
-            return tuple(
-                [f"m/{bi}/" for bi in bids_ignores if len(bi) and bi.strip()[0] != "#"]
-            )
-    return tuple()
+    try:
+        patterns = json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise argparse.ArgumentTypeError("bidsignore patterns must be valid JSON") from exc
+
+    if not isinstance(patterns, list):
+        raise argparse.ArgumentTypeError("bidsignore patterns must be a JSON array of strings")
+
+    compiled_patterns = []
+    for pattern in patterns:
+        if not isinstance(pattern, str):
+            raise argparse.ArgumentTypeError("bidsignore patterns must be a JSON array of strings")
+
+        pattern = pattern.strip()
+        if pattern:
+            compiled_patterns.append(re.compile(fnmatch.translate(pattern)))
+
+    return tuple(compiled_patterns)
 
 
 def create_bids_layout(args: argparse.Namespace) -> bids.BIDSLayout:
@@ -88,7 +90,7 @@ def create_bids_layout(args: argparse.Namespace) -> bids.BIDSLayout:
         when ``--no-strict-bids-validation`` was requested.
     """
     indexer = bids.BIDSLayoutIndexer(
-        ignore=_load_bidsignore(args.bids_path),
+        ignore=args.bidsignore_patterns,
     )
 
     return bids.BIDSLayout(

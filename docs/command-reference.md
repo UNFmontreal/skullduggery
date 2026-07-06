@@ -36,6 +36,7 @@ skullduggery <BIDS_PATH> [OPTIONS]
 |------|------|---------|-------------|
 | `--ref-bids-filters` | JSON or file path | `{"suffix": "T1w", "datatype": "anat"}` | BIDS filters to select the reference series for registration. Can be inline JSON or path to JSON file. |
 | `--other-bids-filters` | JSON or file path | `[{"datatype": "anat"}]` | BIDS filters to select all images to deface. Can be inline JSON or path to JSON file. |
+| `--bidsignore-patterns` | JSON array or file path | none | Glob patterns to ignore during BIDS indexing. Can be inline JSON or path to a JSON file containing an array of strings. |
 | `--deface-sensitive` | flag | false | Select only series marked as sensitive in git-annex metadata. |
 
 ### Output Options
@@ -106,6 +107,22 @@ skullduggery /path/to/dataset \
 ```bash
 skullduggery /path/to/dataset \
   --other-bids-filters /path/to/filters.json
+```
+
+### BIDS Ignore Patterns
+
+Skullduggery does not automatically read `.bidsignore`. Use `--bidsignore-patterns` to ignore dataset paths during BIDS indexing.
+
+**Inline JSON:**
+```bash
+skullduggery /path/to/dataset \
+  --bidsignore-patterns '["sourcedata/**", "derivatives/**"]'
+```
+
+**From file:**
+```bash
+skullduggery /path/to/dataset \
+  --bidsignore-patterns /path/to/bidsignore_patterns.json
 ```
 
 ## Age Format

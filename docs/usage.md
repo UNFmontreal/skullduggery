@@ -137,6 +137,22 @@ skullduggery /path/to/bids/dataset \
 
 The reference series determines which image is used for template registration. All other anatomical images are defaced using the transformed mask.
 
+### Ignore Paths During BIDS Indexing
+
+Skullduggery does not automatically read `.bidsignore`. To exclude paths from indexing, provide glob patterns with `--bidsignore-patterns`.
+
+**Inline JSON patterns:**
+```bash
+skullduggery /path/to/bids/dataset \
+  --bidsignore-patterns '["sourcedata/**", "derivatives/**"]'
+```
+
+**Patterns from a JSON file:**
+```bash
+skullduggery /path/to/bids/dataset \
+  --bidsignore-patterns /path/to/bidsignore_patterns.json
+```
+
 ## Advanced Options
 
 ### Force BIDS Reindexing

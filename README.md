@@ -79,10 +79,27 @@ View the full documentation at: `docs/` or [online](https://readthedocs.org/)
 - `--report-dir DIR` - Directory for HTML reports and visualizations
 - `--ref-bids-filters JSON` - BIDS filters for selecting reference image (default: `{"suffix": "T1w", "datatype": "anat"}`)
 - `--other-bids-filters JSON` - BIDS filters for images to deface (default: `[{"datatype": "anat"}]`)
+- `--bidsignore-patterns JSON` - JSON array or JSON file of glob patterns to ignore during BIDS indexing
 - `--datalad` - Enable DataLad integration for metadata tracking
 - `--deface-sensitive` - Only deface images marked with distribution-restrictions metadata
 - `--force-reindex` - Force pyBIDS database reindexing
 - `--debug LEVEL` - Set logging level (default: `info`)
+
+## Ignoring Dataset Paths
+
+Skullduggery does not automatically read `.bidsignore`. To ignore files or directories during BIDS indexing, pass glob patterns explicitly with `--bidsignore-patterns`.
+
+**Inline JSON:**
+```bash
+skullduggery /data/mybids \
+  --bidsignore-patterns '["sourcedata/**", "derivatives/**"]'
+```
+
+**From a JSON file:**
+```bash
+skullduggery /data/mybids \
+  --bidsignore-patterns ./bidsignore_patterns.json
+```
 
 ## How It Works
 

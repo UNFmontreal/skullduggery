@@ -14,7 +14,7 @@ import sys
 import bids
 import coloredlogs
 
-from .bids import _bids_filter, create_bids_layout
+from .bids import _bids_filter, _bidsignore_patterns, create_bids_layout
 from .utils import SUPPORTED_AGE_UNITS
 from .workflow import deface_workflow
 
@@ -146,6 +146,14 @@ def parse_args():
         required=False,
         default=[{"datatype": "anat"}],
         help="path to or inline json with pybids filters to select all images to deface",
+    )
+    parser.add_argument(
+        "--bidsignore-patterns",
+        dest="bidsignore_patterns",
+        action="store",
+        type=_bidsignore_patterns,
+        default=tuple(),
+        help="path to or inline json array of glob patterns to ignore while indexing the BIDS dataset",
     )
     parser.add_argument(
         "--deface-sensitive", action="store_true", help="select series to deface using git-annex metadata string"
