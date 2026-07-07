@@ -124,7 +124,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
     # lookup reference images
     deface_ref_images = filters_query(layout, args.participant_label, args.session_label, [args.ref_bids_filters])
     if not len(deface_ref_images):
-        logger.error(f"no reference image found with condition {filters}")
+        logger.error(f"no reference image found with condition {args.ref_bids_filters}")
         return False
     logger.debug(f"found {len(deface_ref_images)} reference images")
 
