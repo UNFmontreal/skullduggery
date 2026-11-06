@@ -70,7 +70,32 @@ skullduggery /path/to/bids/dataset --template MNI152NLin6Asym
 skullduggery /path/to/bids/dataset --template MNIInfant:cohort-07m09m
 ```
 
-**When participants.tsv lacks age data:**
+Age is read from `sub-<id>/sub-<id>_sessions.tsv` for the exact session being
+processed, using `age.Units` from its JSON sidecar. For example:
+
+```text
+session_id  age
+ses-1a      1.5
+ses-2a      2.5
+```
+
+Use tabs between columns and `{"age": {"Units": "year"}}` in
+`sub-<id>_sessions.json`. Sex remains in `participants.tsv`; it is not used for
+age-based template selection. Both singular and plural `year`, `month`, and
+`week` units are accepted and normalized internally to plural forms.
+
+If a subject has no sessions table, or the table has no `age` column, age is
+read from that subject's row in `participants.tsv`. Units come from
+`participants.json`; if Units is omitted, participant age defaults to years
+as specified by BIDS. A sessions table containing only acquisition times or
+other metadata therefore does not prevent participant-level age lookup.
+
+When a sessions table defines an `age` column, missing, invalid, or duplicate
+session ages do not fall back to participant-level age. Age must be finite and
+nonnegative. Unsupported units remain unresolved; session age requires units
+in its sidecar.
+
+**When session or participant metadata has no usable age:**
 ```bash
 skullduggery /path/to/bids/dataset \
   --template MNIInfant:cohort-06m09m \

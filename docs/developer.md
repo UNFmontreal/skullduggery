@@ -40,7 +40,7 @@ flowchart TD
     
     FindRef --> RefLoop["For Each Reference Image"]
     
-    RefLoop --> GetAge["Get Participant Age<br/>from participants.tsv"]
+    RefLoop --> GetAge["Get Session Age<br/>or Legacy Participant Age"]
     GetAge --> LoadTpl["Load Age-Specific<br/>Template"]
     LoadTpl --> CheckReg{Registration<br/>Matrix<br/>Exists?}
     

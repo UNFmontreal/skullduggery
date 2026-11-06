@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+import math
 from typing import Iterable, Literal, cast, Generator
 
 import bids
@@ -20,47 +21,63 @@ def get_age_and_unit(
     subject: str,
     session: str | None = None,
 ) -> tuple[float, str] | None:
-    """Extract participant age and unit from BIDS participants.tsv.
+    """Read session-level age when defined, otherwise participant-level age.
 
-    Queries the BIDS layout for a specific participant's age information,
-    including unit validation from the TSV metadata.
-
-    Args:
-        layout: PyBIDS BIDSLayout object.
-        subject: Participant identifier (without 'sub-' prefix).
-        session: Optional session identifier (without 'ses-' prefix).
-
-    Returns:
-        tuple: (age_value, age_unit) where age_value is float and
-            age_unit is one of SUPPORTED_AGE_UNITS, or None if age not found.
-
-    Logs warnings if:
-        - participants.tsv missing 'age' column
-        - No matching age found for participant
-        - Age units metadata missing or unsupported
+    Subject/session labels may include their BIDS prefixes. An age column in the
+    sessions table is authoritative: missing, duplicate or invalid ages return None rather
+    than borrowing an age from participants.tsv or another visit. Units from the
+    selected table's metadata are normalized to weeks, months or years for the
+    template-selection code. Participant ages without Units metadata default to
+    years, as specified by BIDS. Unsupported units return None, allowing the
+    workflow's explicit --default-age fallback.
     """
-    participants_tsv = layout.get(suffix="participants", extension=".tsv")[0]
-    participants_df = participants_tsv.get_df()
-    participant_mask = participants_df["participant_id"] == f"sub-{subject}"
-    if session and "session_id" in participants_df.columns:
-        participant_mask = participant_mask & (participants_df["session_id"] == f"ses-{session}")
-
-    if "age" not in participants_df.columns:
-        logger.warning("participants.tsv does not contain an age column")
+    subject = subject[4:] if subject.startswith("sub-") else subject
+    if session is not None and session.startswith("ses-"):
+        session = session[4:]
+    tables = layout.get(subject=subject, suffix="sessions", extension=".tsv", scope="raw")
+    if len(tables) > 1:
+        logger.warning("expected one sessions table for sub-%s; found %d", subject, len(tables))
+        return None
+    frame = tables[0].get_df() if tables else None
+    if frame is not None and "age" in frame.columns:
+        if session is None:
+            logger.warning("session required to resolve age from sub-%s sessions table", subject)
+            return None
+        key, identifier = "session_id", f"ses-{session}"
+    else:
+        tables = layout.get(suffix="participants", extension=".tsv", scope="raw")
+        frame = None
+        key, identifier = "participant_id", f"sub-{subject}"
+    if len(tables) != 1:
+        logger.warning("expected one age table for sub-%s; found %d", subject, len(tables))
         return None
 
-    matching_rows = participants_df.loc[participant_mask, "age"]
-    if matching_rows.empty:
-        logger.warning("no participant age found for sub-%s", subject)
+    table = tables[0]
+    if frame is None:
+        frame = table.get_df()
+    if key not in frame.columns or "age" not in frame.columns:
+        logger.warning("%s does not contain %s and age columns", table.path, key)
         return None
-
-    participant_age = float(matching_rows.iloc[0])
-    age_unit = _get_age_units(participants_tsv.get_metadata())
-    if not age_unit:
-        logger.warning("participants.tsv metadata does not define supported age units")
+    mask = frame[key] == identifier
+    # Retain support for older participant tables that included session IDs.
+    if key == "participant_id" and session is not None and "session_id" in frame.columns:
+        mask &= frame["session_id"] == f"ses-{session}"
+    matches = frame.loc[mask, "age"]
+    if len(matches) != 1:
+        logger.warning("expected one age for %s in %s; found %d", identifier, table.path, len(matches))
         return None
-
-    return (participant_age, age_unit)
+    try:
+        age = float(matches.iloc[0])
+    except (TypeError, ValueError):
+        age = math.nan
+    if not math.isfinite(age) or age < 0:
+        logger.warning("invalid or missing age for %s in %s", identifier, table.path)
+        return None
+    unit = _get_age_units(table.get_metadata(), default="years" if key == "participant_id" else None)
+    if not unit:
+        logger.warning("%s metadata does not define supported age units", table.path)
+        return None
+    return age, unit
 
 
 # from nibabies
@@ -74,25 +91,32 @@ SUPPORTED_AGE_UNITS = (
 AgeUnit = Literal["weeks", "months", "years"]
 
 
-def _get_age_units(data: dict) -> AgeUnit | bool:
+def _get_age_units(data: dict, default: AgeUnit | None = None) -> AgeUnit | bool:
     """Extract age unit from BIDS metadata dictionary.
 
     Reads the 'age' field from BIDS metadata and validates the Units value.
 
     Args:
-        data: BIDS metadata dictionary, typically from participants.tsv metadata.
+        data: BIDS metadata dictionary, from a participants or sessions TSV sidecar.
+        default: Unit to use only when Units is absent (BIDS participant age defaults to years).
 
     Returns:
         AgeUnit: Normalized age unit ("weeks", "months", or "years"),
             or False if units are missing, not a string, or unsupported.
     """
 
-    units = data.get("age", {}).get("Units", "")
+    age_metadata = data.get("age", {})
+    if not isinstance(age_metadata, dict):
+        return False
+    units = age_metadata.get("Units", default or "")
     if not isinstance(units, str):
         # Multiple units consfuse us
         return False
 
-    normalized_units = units.lower()
+    normalized_units = units.strip().lower()
+    normalized_units = {"week": "weeks", "month": "months", "year": "years"}.get(
+        normalized_units, normalized_units
+    )
     if normalized_units in SUPPORTED_AGE_UNITS:
         return cast(AgeUnit, normalized_units)
     return False

@@ -10,6 +10,7 @@ on:
     branches: ['main', 'dev']
     tags:
       - 'v*'
+      - '[0-9]*'
   release:
     types: [published]
 
@@ -40,6 +41,10 @@ jobs:
         uses: docker/metadata-action@v6.2.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=semver,pattern={{version}}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v7.3.0

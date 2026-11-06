@@ -99,7 +99,9 @@ The defacing pipeline follows these steps:
 
 Before running skullduggery, ensure your dataset:
 - Follows the BIDS standard
-- Contains valid `participants.tsv` (with optional age column for pediatric templates)
+- Provides age in subject sessions TSV/JSON files for longitudinal data, or in
+  `participants.tsv` when session-level age is not defined. Participant age defaults
+  to years unless its JSON sidecar specifies units (see [age lookup](docs/usage.md)).
 - Has anatomical images in proper BIDS format
 
 ## Output Files
@@ -171,3 +173,12 @@ If you use Skullduggery in your research, please cite:
 ## Support
 
 For issues, questions, or suggestions, please open an issue on [GitHub](https://github.com/UNFmontreal/skullduggery/issues).
+
+
+### Docker release version
+
+This change targets package and Docker version `0.0.7`. After committing and
+reviewing the release, publishing Git tag `0.0.7` (or `v0.0.7`) triggers the Docker
+workflow and produces `ghcr.io/unfmontreal/skullduggery:0.0.7`. Branch builds keep
+their branch tags. The package version is defined in
+`src/skullduggery/__init__.py`; keep it aligned with the release tag.

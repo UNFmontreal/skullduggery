@@ -104,7 +104,7 @@ def parse_args():
         action="store",
         type=_default_age,
         default=None,
-        help="fallback age to use when participants.tsv has no age for a subject, formatted as <value>:<unit>",
+        help="fallback age when session or participant metadata has no usable age, formatted as <value>:<unit>",
     )
     parser.add_argument(
         "--force-reindex",
