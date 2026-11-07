@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
 
-from skullduggery.utils import _get_age_units, filters_query, get_age_and_unit
+from skullduggery.utils import _get_age_units, filters_query, get_age_and_unit, group_series
 
 
 def test_get_age_units():
@@ -120,3 +121,94 @@ def test_filters_query_with_session(mocker):
     mock_layout.get.assert_called_once()
     call_kwargs = mock_layout.get.call_args[1]
     assert call_kwargs["session"] == "01"
+
+
+def _participants_layout(df, units="months"):
+    tsv = MagicMock()
+    tsv.get_df.return_value = df
+    tsv.get_metadata.return_value = {"age": {"Units": units}} if units else {}
+    layout = MagicMock()
+    layout.get.return_value = [tsv]
+    return layout
+
+
+def test_get_age_and_unit_filters_by_session():
+    import pandas as pd
+
+    df = pd.DataFrame(
+        {
+            "participant_id": ["sub-01", "sub-01"],
+            "session_id": ["ses-pre", "ses-post"],
+            "age": [3.0, 5.0],
+        }
+    )
+    layout = _participants_layout(df)
+    assert get_age_and_unit(layout, "01", "post") == (5.0, "months")
+
+
+def test_get_age_and_unit_without_age_column_returns_none():
+    import pandas as pd
+
+    layout = _participants_layout(pd.DataFrame({"participant_id": ["sub-01"]}))
+    assert get_age_and_unit(layout, "01") is None
+
+
+def test_get_age_and_unit_missing_participant_returns_none():
+    import pandas as pd
+
+    layout = _participants_layout(pd.DataFrame({"participant_id": ["sub-02"], "age": [3.0]}))
+    assert get_age_and_unit(layout, "01") is None
+
+
+def test_get_age_and_unit_without_supported_units_returns_none():
+    import pandas as pd
+
+    layout = _participants_layout(pd.DataFrame({"participant_id": ["sub-01"], "age": [3.0]}), units="fortnights")
+    assert get_age_and_unit(layout, "01") is None
+
+
+def test_get_age_units_non_string_units_is_rejected():
+    assert _get_age_units({"age": {"Units": ["months", "years"]}}) is False
+
+
+def test_get_age_units_missing_field_is_rejected():
+    assert _get_age_units({}) is False
+
+
+def _entity_file(path, **entities):
+    return SimpleNamespace(path=path, entities=entities, get_entities=lambda metadata=False: dict(entities))
+
+
+def test_group_series_groups_echo_and_part_variants_together():
+    mag_echo1 = _entity_file("a_echo-1_part-mag_T1w.nii.gz", subject="01", suffix="T1w", echo="1", part="mag")
+    phase_echo1 = _entity_file("a_echo-1_part-phase_T1w.nii.gz", subject="01", suffix="T1w", echo="1", part="phase")
+    mag_echo2 = _entity_file("a_echo-2_part-mag_T1w.nii.gz", subject="01", suffix="T1w", echo="2", part="mag")
+    other = _entity_file("b_T1w.nii.gz", subject="01", suffix="T2w")
+
+    groups = list(group_series([mag_echo1, phase_echo1, mag_echo2, other], ref_image=other))
+
+    assert len(groups) == 2
+    _, groupref, members = groups[0]
+    assert groupref is mag_echo1
+    assert members == [mag_echo1, phase_echo1, mag_echo2]
+    assert groups[1][1] is other
+
+
+def test_group_series_prefers_reference_image_as_representative():
+    first = _entity_file("x_T1w.nii.gz", subject="01", suffix="T1w")
+    ref = _entity_file("y_T1w.nii.gz", subject="01", suffix="T1w")
+    ((_, groupref, _),) = group_series([first, ref], ref_image=ref)
+    assert groupref is ref
+
+
+def test_filters_query_combines_results_from_each_filter_set():
+    layout = MagicMock()
+    layout.get.side_effect = [["t1"], ["t2a", "t2b"]]
+    result = filters_query(layout, "01", None, [{"suffix": "T1w"}, {"suffix": "T2w"}])
+    assert result == ["t1", "t2a", "t2b"]
+    assert layout.get.call_args_list[0].kwargs == {
+        "extension": ["nii", "nii.gz"],
+        "subject": "01",
+        "session": None,
+        "suffix": "T1w",
+    }
