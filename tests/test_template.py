@@ -157,3 +157,74 @@ def test_select_template_by_age():
     # Age >= 2 years - should use adult template
     assert select_template_by_age((2.0, "years")) == DEFAULT_TEMPLATE
     assert select_template_by_age((5.0, "years")) == DEFAULT_TEMPLATE
+
+
+@pytest.mark.parametrize(
+    "value, from_unit, to_unit, expected",
+    [
+        (1.0, "years", "months", 12.0),
+        (12.0, "months", "years", 1.0),
+        (1.0, "years", "weeks", 52.1429),
+        (52.1429, "weeks", "years", 1.0),
+        (3.0, "months", "weeks", 13.0357),
+        (7.0, "weeks", "weeks", 7.0),
+    ],
+)
+def test_convert_age_between_units(value, from_unit, to_unit, expected):
+    assert convert_age(value, from_unit, to_unit) == pytest.approx(expected, rel=1e-3)
+
+
+def test_get_template_raises_when_contrast_missing(mocker):
+    mock_tplflow = mocker.patch("skullduggery.template.tplflow")
+    mock_tplflow.get_metadata.return_value = {}
+    mock_tplflow.get.return_value = []
+
+    with pytest.raises(RuntimeError, match="failed to get contrast"):
+        get_template()
+
+
+def test_get_template_raises_when_default_transform_missing(mocker):
+    mock_tplflow = mocker.patch("skullduggery.template.tplflow")
+    mock_tplflow.get_metadata.return_value = {}
+    mock_tplflow.get.side_effect = [Path("/tpl.nii.gz"), Path("/mask.nii.gz"), []]
+
+    with pytest.raises(RuntimeError, match="transform to default template"):
+        get_template(template_name="MNIInfant")
+
+
+def test_get_template_takes_first_match_from_list(mocker):
+    mock_tplflow = mocker.patch("skullduggery.template.tplflow")
+    mock_tplflow.get_metadata.return_value = {}
+    mock_tplflow.get.side_effect = [[Path("/a.nii.gz"), Path("/b.nii.gz")], Path("/mask.nii.gz")]
+
+    tpl, _, _ = get_template()
+
+    assert tpl == Path("/a.nii.gz")
+
+
+def test_get_template_selects_cohort_matching_age(mocker):
+    mock_tplflow = mocker.patch("skullduggery.template.tplflow")
+    mock_tplflow.get_metadata.return_value = {
+        "cohort": {
+            "01": {"units": "months", "age": [0, 6]},
+            "02": {"units": "months", "age": [6, 12]},
+        }
+    }
+    mock_tplflow.get.side_effect = [Path("/tpl.nii.gz"), Path("/mask.nii.gz"), Path("/xfm.h5")]
+
+    get_template(template_name="MNIInfant", age=(8.0, "months"))
+
+    first_call = mock_tplflow.get.call_args_list[0]
+    assert first_call.kwargs["cohort"] == "02"
+
+
+def test_get_template_cohort_age_in_other_units(mocker):
+    mock_tplflow = mocker.patch("skullduggery.template.tplflow")
+    mock_tplflow.get_metadata.return_value = {
+        "cohort": {"01": {"units": "months", "age": [0, 24]}},
+    }
+    mock_tplflow.get.side_effect = [Path("/tpl.nii.gz"), Path("/mask.nii.gz"), Path("/xfm.h5")]
+
+    get_template(template_name="MNIInfant", age=(1.0, "years"))
+
+    assert mock_tplflow.get.call_args_list[0].kwargs["cohort"] == "01"

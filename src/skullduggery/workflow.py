@@ -102,10 +102,11 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
 
     report_dir = layout._root / (args.report_dir or Path(".skullduggery"))
 
-    if args.datalad:
+    if args.datalad or args.deface_sensitive:
         if datalad is None:
             raise ImportError(
-                "datalad is required for --datalad flag. " "Install it with: pip install skullduggery[datalad]"
+                "datalad is required for --datalad or --deface-sensitive flag. "
+                "Install it with: pip install skullduggery[datalad]"
             )
         dlad_ds = datalad.api.Dataset(args.bids_path)
         annex_repo = dlad_ds.repo
@@ -124,7 +125,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
     # lookup reference images
     deface_ref_images = filters_query(layout, args.participant_label, args.session_label, [args.ref_bids_filters])
     if not len(deface_ref_images):
-        logger.error(f"no reference image found with condition {filters}")
+        logger.error(f"no reference image found with condition {args.ref_bids_filters}")
         return False
     logger.debug(f"found {len(deface_ref_images)} reference images")
 
@@ -287,6 +288,7 @@ def deface_workflow(layout: bids.BIDSLayout, args: argparse.Namespace) -> bool:
             message="[deface] 💀 %d series/images and update distribution-restrictions" % len(modified_files),
         )
         logging.info("saving metadata changes in datalad")
+    if args.datalad or args.deface_sensitive:
         annex_repo.set_metadata(modified_files, remove={"distribution-restrictions": "sensitive"})
 
     return True
