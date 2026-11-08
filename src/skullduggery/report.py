@@ -238,7 +238,7 @@ def generate_deface_mosaic_report(
                     seg_niis=[mask_volume],
                     bbox_nii=masked_volume,
                     masked=True,
-                    title=f"reference{volume_label}",
+                    #title=f"reference{volume_label}",
                 ),
             )
         _add_plot(
@@ -248,7 +248,7 @@ def generate_deface_mosaic_report(
                 seg_niis=[mask_volume],
                 bbox_nii=masked_volume,
                 masked=True,
-                title=f"defaced{volume_label}",
+                #title=f"defaced{volume_label}",
             ),
         )
 
